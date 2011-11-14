@@ -1,3 +1,73 @@
 // Place all the styles related to the plot controller here.
 // They will automatically be included in application.css.
 // You can use Sass (SCSS) here: http://sass-lang.com/
+$blue: #3bbfce;
+$margin: 16px;
+$width: 300px;
+$height: 250px;
+$main_width: 1000px;
+$main_height:  1000px;
+
+.point_sliders{
+  padding: $margin/2;
+  margin:  $margin/2;
+}
+
+#slider_x, #slider_y, #slider_z {
+  margin: $margin*2;
+}
+
+.point_sliders{
+}
+
+.angle_sliders{
+  width: $width;
+  height: $height;
+  padding: $margin/2;
+  margin:  $margin/2;
+}
+
+.angle_sliders span{
+  height: 120px;
+  float: left;
+  margin: 15px;
+}
+
+.angle_sliders p{
+}
+
+#angle_x, #angle_y, #angle_z {
+  margin: $margin*2;
+}
+
+#u, #v, #step_u, #step_v, #a, .filling{
+  margin: $margin*2;
+
+}
+
+body,html {
+  margin:0;
+  padding:0;
+}
+body {
+  min-width: $main_width;
+}
+#wrap {
+  margin:0 auto;
+  width: $main_width;
+}
+
+#sidebar {
+  float:right;
+  width: $main_width/3;
+}
+
+#footer {
+  clear:both;
+}
+
+#main {
+  float:left;
+  width: $main_width/1.5;
+}
+

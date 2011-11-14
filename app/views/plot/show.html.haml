@@ -1,5 +1,49 @@
-%h1 This is Show!
+%link{:href => "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.8/themes/ui-lightness/jquery-ui.css", :rel => "stylesheet", :type => "text/css"}
 
-%canvas{ :id => 'canvas', :width => 600, :height => 400}
-  Вот это ДА!
+#wrap
+  #main
+    %h1 IGS Labaratory 1
+
+    %canvas{ :id => 'canvas', :width => 600, :height => 400}
+      Вот это ДА!
+  #sidebar
+    .surface_parameters
+      %h3 Surface parameters
+      %span
+        #u
+          %p u:
+        #v
+          %p v:
+        #step_u
+          %p du:
+        #step_v
+          %p dv:
+        #a
+          %p a:
+
+    .filling
+      %h3 Filling
+      %input{:type => 'radio', :id => 'frame', :name => 'filling', :value => 'frame', :checked => true} Frame
+      %input{:type => 'radio', :id => 'flat', :name => 'filling', :value => 'flat'} Flat
+  #footer
+    .angle_sliders
+      %h3 Поворот поверхности
+      #angle_x
+        %p X:
+      #angle_y
+        %p Y:
+      #angle_z
+        %p Z:
+  #equation
+    %p x = a * sin( u ) * cos( v )
+    %p y = a * sin( u ) * sin( v )
+    %p z = a * ( log( tan( u / 2 ) ) + cos( u ) )
+  #in_color
+    %p In color
+    %table{:widht => '100px', :height => '50px', :style => "background-color: rgb(250, 222, 173);" }
+      %td
+  #out_color
+    %p Out color
+    %table{:widht => '100px', :height => '50px', :style => "background-color: rgb(123, 104, 238);" }
+      %td
 
