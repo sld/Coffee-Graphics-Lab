@@ -1,49 +1,76 @@
 %link{:href => "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.8/themes/ui-lightness/jquery-ui.css", :rel => "stylesheet", :type => "text/css"}
 
+- u_min = 0.0
+- v_min = 0.0
+- u_max = 3.14/2
+- v_max = 2*3.14
+
+- angle_min = -90
+- angle_max = 90
+- angle_val = 45
+- d_max = 50
+- d_min = 1
+- d_step = 1
+- min_col = 0
+- max_col = 255
+- col_val = 121
+- u_val = 100
+- v_val = 10
+- d_val = 20
+- a_val = -3
+
+
 #wrap
   #main
-    %h1 IGS Labaratory 1
+    %h2.alt Лабораторная работа по ИГС 1
 
     %canvas{ :id => 'canvas', :width => 600, :height => 400}
       Вот это ДА!
   #sidebar
     .surface_parameters
-      %h3 Surface parameters
+      %h3 Параметры поверхности
       %span
         #u
-          %p u:
+          %p u: #{u_val} &isin; [0...200]
         #v
-          %p v:
+          %p v: #{v_val} &isin; [0...200]
         #step_u
-          %p du:
+          %p du: #{d_val} &isin; [0...50]
         #step_v
-          %p dv:
+          %p dv: #{d_val} &isin; [0...50]
         #a
-          %p a:
+          %p a:  #{a_val} &isin; [-10...10]
 
     .filling
-      %h3 Filling
-      %input{:type => 'radio', :id => 'frame', :name => 'filling', :value => 'frame', :checked => true} Frame
-      %input{:type => 'radio', :id => 'flat', :name => 'filling', :value => 'flat'} Flat
-  #footer
+      %h3 --
+      %input{:type => 'radio', :id => 'frame', :name => 'filling', :value => 'frame', :checked => true} Каркас
+      %input{:type => 'radio', :id => 'flat', :name => 'filling', :value => 'flat'} Flat - закраска
+  #sidebar
     .angle_sliders
       %h3 Поворот поверхности
       #angle_x
-        %p X:
+        %p X: #{angle_val} &isin; [-90...90]
       #angle_y
-        %p Y:
+        %p Y: #{angle_val} &isin; [-90...90]
       #angle_z
-        %p Z:
-  #equation
-    %p x = a * sin( u ) * cos( v )
-    %p y = a * sin( u ) * sin( v )
-    %p z = a * ( log( tan( u / 2 ) ) + cos( u ) )
-  #in_color
-    %p In color
-    %table{:widht => '100px', :height => '50px', :style => "background-color: rgb(250, 222, 173);" }
-      %td
-  #out_color
-    %p Out color
-    %table{:widht => '100px', :height => '50px', :style => "background-color: rgb(123, 104, 238);" }
-      %td
+        %p Z: #{angle_val} &isin; [-90...90]
+  #footer
+    .color_sliders
+      .in_color
+        %h3 Внутренний цвет
+        #r
+          %p r: #{col_val} &isin; [0...255]
+        #g
+          %p g: #{col_val} &isin; [0...255]
+        #b
+          %p b: #{col_val} &isin; [0...255]
+
+      .out_color
+        %h3 Внешний цвет
+        #r
+          %p r: #{col_val} &isin; [0...255]
+        #g
+          %p g: #{col_val} &isin; [0...255]
+        #b
+          %p b: #{col_val} &isin; [0...255]
 

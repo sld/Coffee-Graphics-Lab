@@ -8,16 +8,13 @@ $height: 250px;
 $main_width: 1000px;
 $main_height:  1000px;
 
-.point_sliders{
+.point_sliders {
   padding: $margin/2;
   margin:  $margin/2;
 }
 
 #slider_x, #slider_y, #slider_z {
   margin: $margin*2;
-}
-
-.point_sliders{
 }
 
 .angle_sliders{
@@ -27,24 +24,39 @@ $main_height:  1000px;
   margin:  $margin/2;
 }
 
+.color_sliders{
+  margin-top: 370px;
+}
+
+.in_color{
+  padding: 10px;
+}
+
+.out_color{
+  padding: 10px;
+}
+
+
+p.label{
+  position: relative;
+}
+
+.showgrid { background:url('/assets/grid.png'); }
+
 .angle_sliders span{
   height: 120px;
   float: left;
   margin: 15px;
 }
 
-.angle_sliders p{
-}
-
 #angle_x, #angle_y, #angle_z {
   margin: $margin*2;
 }
 
-#u, #v, #step_u, #step_v, #a, .filling{
+#u, #v, #step_u, #step_v, #a, .filling, #r, #g, #b{
   margin: $margin*2;
 
 }
-
 body,html {
   margin:0;
   padding:0;
@@ -63,7 +75,10 @@ body {
 }
 
 #footer {
-  clear:both;
+  width: $width;
+  height: $height;
+  padding: $margin/2;
+  margin:  $margin/2;
 }
 
 #main {

@@ -2,7 +2,7 @@
 # All this logic will automatically be available in application.js.
 # You can use CoffeeScript in this file: http://jashkenas.github.com/coffee-script/
 
-Number::mod = (n) -> ((this % n) + n) % n
+glob_angles = [45, 45, 45]
 
 class Point
   constructor: (x, y, z, a, b, c) ->
@@ -14,8 +14,8 @@ class Point
     @y_angle = b
     @z_angle = c
 
-    @xSize = 2000
-    @ySize = 1000
+    @xSize = 2800
+    @ySize = 1900
     @central_project = false
 
   sin_A: ( a ) ->
@@ -43,30 +43,30 @@ class Point
     return c / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c, 2) )
 
   calculate_sin_cos: () ->
-    @sin_a = this.sin_A( @x_angle )
-    @cos_a = this.cos_A( @x_angle )
-    @sin_b = this.sin_B( @z_angle )
-    @cos_b = this.cos_B( @z_angle )
-    @sin_c = Math.sin( @y_angle )
-    @cos_c = Math.cos( @y_angle )
+    @sin_a = Math.sin( @x_angle )
+    @cos_a = Math.cos( @x_angle )
+    @sin_b = Math.sin( @y_angle )
+    @cos_b = Math.cos( @y_angle )
+    @sin_c = Math.sin( @z_angle )
+    @cos_c = Math.cos( @z_angle )
 
   get_matrixes: () ->
     @rotate_z  = Matrix.create([
-                           [ @cos_a, @sin_a,  0, 0],
-                           [ -@sin_a, @cos_a,   0, 0],
+                           [ @cos_c, @sin_c,  0, 0],
+                           [ -@sin_c, @cos_c,   0, 0],
                            [ 0, 0, 1, 0],
                            [ 0, 0, 0, 1]])
 
     @rotate_x  = Matrix.create([
                          [ 1, 0, 0, 0],
-                         [ 0, @cos_b, @sin_b, 0],
-                         [ 0, -@sin_b,  @cos_b, 0],
+                         [ 0, @cos_a, @sin_a, 0],
+                         [ 0, -@sin_a,  @cos_a, 0],
                          [ 0, 0, 0, 1] ])
 
     @rotate_y  = Matrix.create([
-                         [ @cos_c, 0, -@sin_c, 0],
+                         [ @cos_b, 0, -@sin_b, 0],
                          [ 0, 1, 0, 0],
-                         [ @sin_c, 0,  @cos_c, 0],
+                         [ @sin_b, 0,  @cos_b, 0],
                          [ 0, 0, 0, 1] ])
 
     @move_xy   = Matrix.create([ [1,0,0,0],
@@ -91,16 +91,16 @@ class Point
     this.calculate_sin_cos()
     this.get_matrixes()
     point = $M([[@x, @y, @z, 1]])
-    rotate     = (@rotate_z.x(@rotate_x)).x(@rotate_y)
+    rotate = (@rotate_x.x(@rotate_y)).x(@rotate_z)
 
     if @central_project == true
-      centr_math = ((point.x(rotate)).x(@central_pr)).x(@move_xy)
+      centr_math = (point.x(@central_pr).x((@rotate_x).x(@rotate_y).x(@rotate_z))).x(@move_xy)
       nnx_c = centr_math.e(1,1)/centr_math.e(1,4)
       nny_c = centr_math.e(1,2)/centr_math.e(1,4)
       sx = nnx_c
       sy = nny_c
     else
-      orth_math  = (point.x(rotate)).x(@move_xy)
+      orth_math  = (((point.x(@rotate_x)).x(@rotate_y)).x(@rotate_z)).x(@move_xy)
       sx = orth_math.e(1,1)
       sy = orth_math.e(1,2)
 
@@ -110,25 +110,27 @@ class PseudoSphere
   constructor: (u_min, v_min, u_max, v_max) ->
     @u_max = u_max
     @v_max = v_max
-    @u_min = u_min
-    @v_min = v_min
+    @u_min = 0
+    @v_min = 0
 
-    @x_angle = 354*Math.PI/180
-    @y_angle = 303*Math.PI/180
-    @z_angle = 208*Math.PI/180
+    @x_angle = 45*Math.PI/180
+    @y_angle = 45*Math.PI/180
+    @z_angle = 45*Math.PI/180
 
-    @du = 0.18
-    @dv = 0.28
     @surface_parameter = -2
-    @dist = 0
+    @dv_count = 11
+    @du_count = 20
 
     @to_newel = new Array()
     @flat = false
 
+    @color_out = [123, 200, 20]
+    @color_in = [255,255,22]
+
   set_camera: (xang, yang, zang) ->
-    @z_angle = xang
+    @z_angle = zang
     @y_angle = yang
-    @x_angle = zang
+    @x_angle = xang
 
   set_camera_x_angle: ( val ) ->
     @x_angle = val*Math.PI/180
@@ -139,21 +141,33 @@ class PseudoSphere
   set_camera_z_angle: ( val ) ->
     @z_angle = val*Math.PI/180
 
-  set_du: ( val ) ->
-    @du = val
+  set_du_count: ( val ) ->
+    @du_count = val
 
-  set_dv: ( val ) ->
-    @dv = val
+  set_dv_count: ( val ) ->
+    @dv_count = val
 
   set_u: ( val ) ->
+    @u_max = val * Math.PI / 180
 
   set_v: ( val ) ->
+    @u_min = val * Math.PI / 180
 
   set_flat: ( val ) ->
     @flat = val
 
   set_surface_parameter: ( val ) ->
     @surface_parameter = val
+
+  set_out_color: (rgb) ->
+    @color_out[0] = rgb[0]
+    @color_out[1] = rgb[1]
+    @color_out[2] = rgb[2]
+
+  set_in_color: (rgb) ->
+    @color_in[0] = rgb[0]
+    @color_in[1] = rgb[1]
+    @color_in[2] = rgb[2]
 
   point_equation: ( u, v ) ->
     a = @surface_parameter
@@ -170,27 +184,20 @@ class PseudoSphere
 
   sphere_3d_points: () ->
     points = []
+    @du = (Math.abs(@u_max - @u_min) / @du_count)
+    @dv = (Math.abs(@v_max - @v_min) / @dv_count)
     u_min = @u_min
     v_min = @v_min
-    u_max = @u_max
-    v_max = @v_max
+    u_max = @u_max - @du/2
+    v_max = @v_max + @dv/2
 
-    cnts = []
     while u_min < u_max
       while v_min < v_max
-        points.push( this.point_equation(u_min, v_min) )
         v_min += @dv
+        points.push( this.point_equation(u_min, v_min) )
       u_min += @du
       v_min = @v_min
-    @dist = Math.round(Math.abs(@v_max - @v_min) / @dv)
-    @du_count = Math.round(Math.abs(@u_max - @u_min) / @du)
     return points
-
-  # В итоге делаем так:
-  # Каждой точек ставим в соответствие её 3d точку
-  # Потом когда находим сегменты, берем 4 первые точки
-  # и берем соответствующие ей 3d координаты
-  # и считаем для каждой коэффициенты a, b, c
 
   sphere_screen_points: () ->
     points = this.sphere_3d_points()
@@ -198,7 +205,7 @@ class PseudoSphere
 
     for point in points
       to_p = new Point( point[0], point[1], point[2], @x_angle, @y_angle, @z_angle )
-      to_p = to_p.get_screen_projection()
+      to_p = to_p.get_screen_projection( )
       @to_newel[to_p] = [ point[0], point[1], point[2] ]
       screen_points.push( to_p )
     return screen_points
@@ -206,68 +213,71 @@ class PseudoSphere
   sphere_segments: () ->
     points = this.sphere_screen_points()
     segments = []
-    for i in [0...points.length - @dist - 1]
-      segments.push([ points[i],  points[i + @dist + 1], points[i + @dist], points[i]])
-
-    for j in [0...@du_count]
-      ind = (@dist + 1)*j
-      if ind + @dist + 1 <= points.length-1
-        segments[ind] = [ points[ind], points[ind + @dist], points[ind], points[ind + @dist + 1]]
+    for i in [0...points.length - @dv_count - 1]
+      segments.push( [ points[i],  points[i + @dv_count + 1], points[i + @dv_count], points[i], points[i + 1] ])
 
     return segments
 
+  calculate_flat_abc: (segment) ->
+    a = 0
+    b = 0
+    c = 0
+    j = 0
+    for i in [0...segment.length - 1]
+      if i == segment.length - 2
+        j = 1
+      else
+        j = i + 1
+      first_surf_point = @to_newel[ segment[i] ]
+      second_surf_point = @to_newel[ segment[j] ]
+
+      a += (first_surf_point[1] - second_surf_point[1]) * (first_surf_point[2] + second_surf_point[2])
+      b += (first_surf_point[2] - second_surf_point[2]) * (first_surf_point[0] + second_surf_point[0])
+      c += (first_surf_point[0] - second_surf_point[0]) * (first_surf_point[1] + second_surf_point[1])
+
+    return [a, b, c]
+
   fill_segment: (segment) ->
-    if @flat
-      a = 0
-      b = 0
-      c = 0
-      j = 0
+    abc = this.calculate_flat_abc( segment )
+    a = abc[0]
+    b = abc[1]
+    c = abc[2]
+    cos_s_n = -c / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c , 2) )
+    color_in = [0, 0, 0]
+    color_out = [0, 0, 0]
+    color = 0
+    if cos_s_n < 0
+      color_in[0] = Math.round( @color_in[0]*(-cos_s_n))
+      color_in[1] = Math.round(@color_in[1]*(-cos_s_n))
+      color_in[2] = Math.round(@color_in[2]*(-cos_s_n))
+      color = "rgb(#{color_in[0]},#{color_in[1]},#{color_in[2]})"
+    else if cos_s_n > 0
+      color_out[0] = Math.round(@color_out[0]*cos_s_n)
+      color_out[1] = Math.round(@color_out[1]*cos_s_n)
+      color_out[2] = Math.round(@color_out[2]*cos_s_n)
+      color = "rgb(#{color_out[0]},#{color_out[1]},#{color_out[2]})"
 
-      for i in [0...segment.length - 1]
-        if i == segment.length - 2
-          j = 1
-        else
-          j = i + 1
-        first_surf_point = @to_newel[ segment[i] ]
-        second_surf_point = @to_newel[ segment[j] ]
-        if first_surf_point != undefined && second_surf_point != undefined
-          a += (first_surf_point[1] - second_surf_point[1]) * (first_surf_point[2] + second_surf_point[2])
-          b += (first_surf_point[2] - second_surf_point[2]) * (first_surf_point[0] + second_surf_point[0])
-          c += (first_surf_point[0] - second_surf_point[0]) * (first_surf_point[1] + second_surf_point[1])
-
-      cos_s_n = c / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c , 2) )
-      cos_s_n *= -1
-      #cos_s_n = (-1)*((a*0) + (b*0) + (c*1))/ Math.sqrt( (Math.pow(0, 2) + Math.pow(0, 2) + Math.pow(1, 2))*(Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c, 2)) )
-      color_in = [123, 222, 173]
-      color_out = [123, 104, 238]
-      color = 0
-      if cos_s_n < 0
-        color_in[0] *= (-cos_s_n)
-        color_in[1] *= (-cos_s_n)
-        color_in[2] *= (-cos_s_n)
-        color = "rgb(#{color_in[0]}, #{color_in[1]}, #{color_in[2]})"
-      else if cos_s_n > 0
-        color_out[0] *= cos_s_n
-        color_out[1] *= cos_s_n
-        color_out[2] *= cos_s_n
-        color = "rgb(#{color_out[0]}, #{color_out[1]}, #{color_out[2] })"
-
-      #alert(cos_s_n)
-      if color != 0
-        jc.line([segment[0], segment[1], segment[2], segment[3], segment[4] ], color, 1 )
+    if color != 0
+      jc.line([segment[0], segment[4], segment[1], segment[2], segment[0]], color, true )
 
 
   draw: () ->
     jc.clear("canvas")
     jc.start('canvas', true)
     segments = this.sphere_segments()
+    if @flat
+      for segment in segments
+        this.fill_segment(segment)
+    else
+      for segment in segments
+        jc.line(segment)
+    jc.line([[0,0],[100,0]])
+    jc.line([[0,0],[0,100]])
 
-    for segment in segments
-      this.fill_segment(segment)
-      jc.line(segment)
-    jc.line(segments[(@dist + 1)*1], '#ff5587')
+#------------------- Конец описания классов ---------------------------------------
 
 $ ->
+  # Иниициализация начальных значений поверхности
   u_min = 0.0
   v_min = 0.0
   u_max = Math.PI/2
@@ -275,78 +285,99 @@ $ ->
   sp = new PseudoSphere( u_min, v_min, u_max, v_max )
   sp.draw()
 
+  a_val = -3
+  u_val = 100
+  v_val = 10
+  col_val = 121
+  u_min = 0
+  u_max = 200
+  @angle_min = -90
+  @angle_max = 90
+  @angle_val = 45
+  @d_max = 50
+  @d_min = 1
+  @d_step = 1
+  @min_col = 0
+  @max_col = 255
+  @d_val = 20
+
+  # Слайдеры для управления вращением объекта
   $('#angle_x').slider
-    min: 0
-    max: 800
-    value: 100
+    min: @angle_min
+    max: @angle_max
+    value: @angle_val
     slide: (event, ui) ->
-      $('#angle_x p').html(ui.value)
+      $('#angle_x p').html("X: #{ui.value} &isin; [-90...90]")
       sp.set_camera_x_angle( ui.value )
       sp.draw()
 
   $('#angle_y').slider
-    min: 0
-    max: 800
-    value: 100
+    min: @angle_min
+    max: @angle_max
+    value: @angle_val
     slide: (event, ui) ->
-      $('#angle_y p').html(ui.value)
+      $('#angle_y p').html("Y: #{ui.value} &isin; [-90...90]")
       sp.set_camera_y_angle( ui.value )
       sp.draw()
 
   $('#angle_z').slider
-    min: 0
-    max: 800
-    value: 100
+    min: @angle_min
+    max: @angle_max
+    value: @angle_val
     slide: (event, ui) ->
-      $('#angle_z p').html(ui.value)
+      $('#angle_z p').html("Z: #{ui.value} &isin; [-90...90]")
       sp.set_camera_z_angle( ui.value )
       sp.draw()
 
+   # ---------------------------------------------------
+
+
+   # Слайдеры для управления параметрами поверхности
    $('#u').slider
-    min: 1
-    max: 360
-    value: 60
+    min: u_min
+    max: u_max
+    value: u_val
     slide: (event, ui) ->
-      $('#u p').html(ui.value)
+      $('#u p').html("U: #{ui.value} &isin; [0...200]")
       sp.set_u(ui.value)
       sp.draw()
 
   $('#v').slider
-    min: 1
-    max: 360
-    value: 60
+    min: u_min
+    max: u_max
+    value: v_val
     slide: (event, ui) ->
-      $('#v p').html(ui.value)
+      $('#v p').html("V: #{ui.value} &isin; [0...200]")
       sp.set_v(ui.value)
       sp.draw()
 
   $('#step_u').slider
-    min: 0.03
-    max: 4
-    step: 0.05
-    value: 0.1
+    min: @d_min
+    max: @d_max
+    step: @d_step
+    value: @d_val
     slide: (event, ui) ->
-      $('#step_u p').html(ui.value)
-      sp.set_du(ui.value)
+      $('#step_u p').html("DU: #{ui.value} &isin; [0...50]")
+      sp.set_du_count(ui.value)
       sp.draw()
 
   $('#step_v').slider
-    min: 0.03
-    max: 4
-    step: 0.05
-    value: 0.1
+    min: @d_min
+    max: @d_max
+    step: @d_step
+    value: @d_val
     slide: (event, ui) ->
-      $('#step_v p').html(ui.value)
-      sp.set_dv(ui.value)
+      $('#step_v p').html("DV: #{ui.value} &isin; [0...50]")
+      sp.set_dv_count(ui.value)
       sp.draw()
 
   $('#a').slider
-    min: -5
-    max: 5
-    step: 0.01
-    value: 1
+    min: -10
+    max: 10
+    step: @d_step
+    value: a_val
     slide: (event, ui) ->
-      $('#a p').html(ui.value)
+      $('#a p').html("A: #{ui.value} &isin; [-10...10]")
       sp.set_surface_parameter(ui.value)
       sp.draw()
 
@@ -360,4 +391,70 @@ $ ->
     else
       sp.set_flat(false)
       sp.draw()
+
+
+  # ----------------------------------------------------
+
+
+  # Слайдеры для управления цветом
+  $('.in_color #r').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.in_color #r p').html("r: #{ui.value} 	&isin; [0...255]")
+      sp.set_in_color([ui.value,  $('.in_color #g').slider("value"), $('.in_color #b').slider("value") ])
+      sp.draw()
+
+  $('.in_color #g').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.in_color #g p').html("g: #{ui.value} &isin; [0...255]")
+      sp.set_in_color([$('.in_color #r').slider("value"),  ui.value, $('.in_color #b').slider("value") ])
+      sp.draw()
+
+  $('.in_color #b').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.in_color #b p').html("b: #{ui.value} &isin; [0...255]")
+      sp.set_in_color([$('.in_color #r').slider("value"),  $('.in_color #g').slider("value"), ui.value ])
+      sp.draw()
+
+  $('.out_color #r').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.out_color #r p').html("r: #{ui.value} &isin; [0...255]")
+      sp.set_out_color([ui.value,  $('.out_color #g').slider("value"), $('.out_color #b').slider("value") ])
+      sp.draw()
+
+  $('.out_color #g').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.out_color #g p').html("g: #{ui.value} &isin; [0...255]")
+      sp.set_out_color([$('.out_color #r').slider("value"),  ui.value, $('.out_color #b').slider("value") ])
+      sp.draw()
+
+  $('.out_color #b').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.out_color #b p').html("b: #{ui.value} &isin; [0...255]")
+      sp.set_out_color([$('.out_color #r').slider("value"),  $('.out_color #g').slider("value"), ui.value ])
+      sp.draw()
+  # ---------------------------------------------------------------
 
