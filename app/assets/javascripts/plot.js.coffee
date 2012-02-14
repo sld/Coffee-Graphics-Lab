@@ -2,8 +2,6 @@
 # All this logic will automatically be available in application.js.
 # You can use CoffeeScript in this file: http://jashkenas.github.com/coffee-script/
 
-glob_angles = [0.0, 0.0, 0.0]
-
 class Point
   constructor: (x, y, z, a, b, c) ->
     @x = x
@@ -86,22 +84,26 @@ class Point
                          [0,1,0,0],
                          [0,0,1,-1/dist],
                          [0,0,0,1] ])
-
+  multiplicate: (matrix) ->
+    point = $M([[@x, @y, @z, 1]])
+    matr = point.x(matrix)
+    @x = matr.e(1,1)
+    @y = matr.e(1,2)
+    @z = matr.e(1,3)
 
   get_screen_projection: () ->
     this.calculate_sin_cos()
     this.get_matrixes()
     point = $M([[@x, @y, @z, 1]])
-    rotate = (@rotate_x.x(@rotate_y)).x(@rotate_z)
 
     if @central_project == true
-      centr_math = (point.x(@central_pr).x((@rotate_x).x(@rotate_y).x(@rotate_z))).x(@move_xy)
+      centr_math = (point.x(@central_pr)).x(@move_xy)
       nnx_c = centr_math.e(1,1)/centr_math.e(1,4)
       nny_c = centr_math.e(1,2)/centr_math.e(1,4)
       sx = nnx_c
       sy = nny_c
     else
-      orth_math  = (((point.x(@rotate_x)).x(@rotate_y)).x(@rotate_z)).x(@project_xy).x(@move_xy)
+      orth_math  = point.x(@project_xy).x(@move_xy)
       sx = orth_math.e(1,1)
       sy = orth_math.e(1,2)
 
@@ -128,32 +130,65 @@ class PseudoSphere
     @color_out = [123, 200, 20]
     @color_in = [255,255,22]
 
-    @prev_x_angle = 0.001
-    @prev_y_angle = 0.002
-    @prev_z_angle = 0.01
+    @prev_x_angle =  @x_angle
+    @prev_y_angle =  @y_angle
+    @prev_z_angle =  @z_angle
+    @result_matr = Matrix.I(4)
 
   set_camera: (xang, yang, zang) ->
     @z_angle = zang
     @y_angle = yang
     @x_angle = xang
+  
+  calc_rotate: (axis) ->
+    cos_a = Math.cos(@x_angle)
+    sin_a = Math.sin(@x_angle)
+    x_rotate = Matrix.create([
+                         [ 1, 0, 0, 0],
+                         [ 0, cos_a, sin_a, 0],
+                         [ 0, -sin_a,  cos_a, 0],
+                         [ 0, 0, 0, 1] ])
+    cos_b = Math.cos(@y_angle)
+    sin_b = Math.sin(@y_angle)
+    y_rotate = Matrix.create([
+                         [ cos_b, 0, -sin_b, 0],
+                         [ 0, 1, 0, 0],
+                         [ sin_b, 0,  cos_b, 0],
+                         [ 0, 0, 0, 1] ])
+    cos_c = Math.cos(@z_angle)
+    sin_c = Math.sin(@z_angle)
+    z_rotate = Matrix.create([
+                           [ cos_c, sin_c,  0, 0],
+                           [ -sin_c,cos_c,   0, 0],
+                           [ 0, 0, 1, 0],
+                           [ 0, 0, 0, 1]])
+    if axis == 'x'
+      return x_rotate
+    if axis == 'y'
+      return y_rotate
+    if axis == 'z'
+      return z_rotate
 
   set_camera_x_angle: ( val ) ->
-    xang = @prev_x_angle
-    @x_angle = val*Math.PI/180
-    @x_angle = @x_angle - xang 
-    @prev_x_angle = val*Math.PI/180
+    radian = Math.PI / 180
+    @x_angle = val*radian - @prev_x_angle 
+    @prev_x_angle = (val*Math.PI)/180
+    rot_matr = this.calc_rotate('x')
+    @result_matr = @result_matr.x(rot_matr)
 
   set_camera_y_angle: ( val ) ->
-    yang = @prev_y_angle
-    @y_angle = val*Math.PI/180
-    @y_angle = @y_angle - yang
+    radian = Math.PI / 180
+    @y_angle = val*radian - @prev_y_angle
     @prev_y_angle = val*Math.PI/180
+    rot_matr = this.calc_rotate('y')
+    @result_matr = @result_matr.x(rot_matr)
 
   set_camera_z_angle: ( val ) ->
-    zang = @prev_z_angle
-    @z_angle = val*Math.PI/180
-    @z_angle = @z_angle - zang
+    radian = Math.PI / 180
+    @z_angle = val*radian - @prev_z_angle
     @prev_z_angle = val*Math.PI/180
+    rot_matr = this.calc_rotate('z')
+    @result_matr = @result_matr.x(rot_matr)
 
   set_du_count: ( val ) ->
     @du_count = val
@@ -188,38 +223,36 @@ class PseudoSphere
     x = a * Math.sin( u ) * Math.cos( v ) 
     y = a * Math.sin( u ) * Math.sin( v ) 
     z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
-#    x = u * Math.cos( v )*1000
-#    y = u * Math.sin( v )*1000
-#    z = a * v * 1000
-#    x = ( r + Math.cos( u / 2 ) * Math.sin( v ) - Math.sin( u / 2 ) * Math.sin( 2 * v )  ) * Math.cos( u ) * 1000
-#    y = ( r + Math.cos( u / 2 ) * Math.sin( v ) - Math.sin( u / 2 ) * Math.sin( 2 * v )  ) * Math.sin( u ) * 1000
-#    z = ( Math.sin( u / 2 ) * Math.sin( v ) + Math.cos( u / 2 ) * Math.sin( 2 * v )  ) * 1000
     return [x, y, z]
 
   sphere_3d_points: () ->
     points = []
-    @du = (Math.abs(@u_max - @u_min) / @du_count)
-    @dv = (Math.abs(@v_max - @v_min) / @dv_count)
-    u_min = @u_min
-    v_min = @v_min
+    @du = (Math.abs(@u_max - @u_min) / (@du_count))
+    @dv = (Math.abs(@v_max - @v_min) / (@dv_count)) 
+    u = @u_min
+    v = @v_min
     u_max = @u_max - @du/2
     v_max = @v_max + @dv/2
 
-    while u_min < u_max
-      while v_min < v_max
-        v_min += @dv
-        points.push( this.point_equation(u_min, v_min) )
-      u_min += @du
-      v_min = @v_min
+    while u < u_max
+      while v < v_max
+        v += @dv
+        points.push( this.point_equation(u, v) )
+      u += @du
+      v = @v_min
     return points
-
+  
+  # Вся твоя ошибка заключалась в том что ты дебил блять!
+  # Ты делаешь диференс углов, получаешь нормальный результат, но не поварачивается!
+  # А всё потому что не надо всё время заново создавать точки, а работать с имеющимися!!!
   sphere_screen_points: () ->
     points = this.sphere_3d_points()
     screen_points = []
 
     for point in points
       to_p = new Point( point[0], point[1], point[2], @x_angle, @y_angle, @z_angle )
-      to_p = to_p.get_screen_projection( )
+      to_p.multiplicate(@result_matr)
+      to_p = to_p.get_screen_projection()
       @to_newel[to_p] = [ point[0], point[1], point[2] ]
       screen_points.push( to_p )
     return screen_points
@@ -307,7 +340,7 @@ $ ->
   u_max = 200
   @angle_min = -90
   @angle_max = 90
-  @angle_val = 48
+  @angle_val = 0
   @d_max = 50
   @d_min = 1
   @d_step = 1
