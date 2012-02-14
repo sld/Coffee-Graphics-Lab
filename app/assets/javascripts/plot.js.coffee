@@ -2,7 +2,7 @@
 # All this logic will automatically be available in application.js.
 # You can use CoffeeScript in this file: http://jashkenas.github.com/coffee-script/
 
-glob_angles = [45, 45, 45]
+glob_angles = [0.0, 0.0, 0.0]
 
 class Point
   constructor: (x, y, z, a, b, c) ->
@@ -49,6 +49,7 @@ class Point
     @cos_b = Math.cos( @y_angle )
     @sin_c = Math.sin( @z_angle )
     @cos_c = Math.cos( @z_angle )
+
 
   get_matrixes: () ->
     @rotate_z  = Matrix.create([
@@ -100,7 +101,7 @@ class Point
       sx = nnx_c
       sy = nny_c
     else
-      orth_math  = (((point.x(@rotate_x)).x(@rotate_y)).x(@rotate_z)).x(@move_xy)
+      orth_math  = (((point.x(@rotate_x)).x(@rotate_y)).x(@rotate_z)).x(@project_xy).x(@move_xy)
       sx = orth_math.e(1,1)
       sy = orth_math.e(1,2)
 
@@ -113,9 +114,9 @@ class PseudoSphere
     @u_min = 0
     @v_min = 0
 
-    @x_angle = 45*Math.PI/180
-    @y_angle = 45*Math.PI/180
-    @z_angle = 45*Math.PI/180
+    @x_angle = 0*Math.PI/180
+    @y_angle = 0*Math.PI/180
+    @z_angle = 0*Math.PI/180
 
     @surface_parameter = -2
     @dv_count = 11
@@ -127,19 +128,32 @@ class PseudoSphere
     @color_out = [123, 200, 20]
     @color_in = [255,255,22]
 
+    @prev_x_angle = 0.001
+    @prev_y_angle = 0.002
+    @prev_z_angle = 0.01
+
   set_camera: (xang, yang, zang) ->
     @z_angle = zang
     @y_angle = yang
     @x_angle = xang
 
   set_camera_x_angle: ( val ) ->
+    xang = @prev_x_angle
     @x_angle = val*Math.PI/180
+    @x_angle = @x_angle - xang 
+    @prev_x_angle = val*Math.PI/180
 
   set_camera_y_angle: ( val ) ->
+    yang = @prev_y_angle
     @y_angle = val*Math.PI/180
+    @y_angle = @y_angle - yang
+    @prev_y_angle = val*Math.PI/180
 
   set_camera_z_angle: ( val ) ->
+    zang = @prev_z_angle
     @z_angle = val*Math.PI/180
+    @z_angle = @z_angle - zang
+    @prev_z_angle = val*Math.PI/180
 
   set_du_count: ( val ) ->
     @du_count = val
@@ -170,10 +184,10 @@ class PseudoSphere
     @color_in[2] = rgb[2]
 
   point_equation: ( u, v ) ->
-    a = @surface_parameter
-    x = a * Math.sin( u ) * Math.cos( v ) * 1000
-    y = a * Math.sin( u ) * Math.sin( v ) * 1000
-    z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) ) * 1000
+    a = @surface_parameter * 1000
+    x = a * Math.sin( u ) * Math.cos( v ) 
+    y = a * Math.sin( u ) * Math.sin( v ) 
+    z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
 #    x = u * Math.cos( v )*1000
 #    y = u * Math.sin( v )*1000
 #    z = a * v * 1000
@@ -293,7 +307,7 @@ $ ->
   u_max = 200
   @angle_min = -90
   @angle_max = 90
-  @angle_val = 45
+  @angle_val = 48
   @d_max = 50
   @d_min = 1
   @d_step = 1
@@ -456,5 +470,4 @@ $ ->
       $('.out_color #b p').html("b: #{ui.value} &isin; [0...255]")
       sp.set_out_color([$('.out_color #r').slider("value"),  $('.out_color #g').slider("value"), ui.value ])
       sp.draw()
-  # ---------------------------------------------------------------
 
