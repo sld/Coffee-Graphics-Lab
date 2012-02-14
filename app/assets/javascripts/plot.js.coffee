@@ -12,10 +12,12 @@ class Point
     @y_angle = b
     @z_angle = c
 
+    # Для Move Matrix
     @xSize = 2800
     @ySize = 1900
     @central_project = false
 
+  #--- Необходимо вынести в модуль Math ---#
   sin_A: ( a ) ->
     return Math.sin( a )
     if (a == 0 && b == 0)
@@ -39,34 +41,36 @@ class Point
     if (a==0 && b==0 && c==0)
       return 1
     return c / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c, 2) )
+  #---    ---#
 
-  calculate_sin_cos: () ->
-    @sin_a = Math.sin( @x_angle )
-    @cos_a = Math.cos( @x_angle )
-    @sin_b = Math.sin( @y_angle )
-    @cos_b = Math.cos( @y_angle )
-    @sin_c = Math.sin( @z_angle )
-    @cos_c = Math.cos( @z_angle )
+    
+  # calculate_sin_cos: () ->
+  #   @sin_a = Math.sin( @x_angle )
+  #   @cos_a = Math.cos( @x_angle )
+  #   @sin_b = Math.sin( @y_angle )
+  #   @cos_b = Math.cos( @y_angle )
+  #   @sin_c = Math.sin( @z_angle )
+  #   @cos_c = Math.cos( @z_angle )
 
 
   get_matrixes: () ->
-    @rotate_z  = Matrix.create([
-                           [ @cos_c, @sin_c,  0, 0],
-                           [ -@sin_c, @cos_c,   0, 0],
-                           [ 0, 0, 1, 0],
-                           [ 0, 0, 0, 1]])
+    # @rotate_z  = Matrix.create([
+    #                        [ @cos_c, @sin_c,  0, 0],
+    #                        [ -@sin_c, @cos_c,   0, 0],
+    #                        [ 0, 0, 1, 0],
+    #                        [ 0, 0, 0, 1]])
 
-    @rotate_x  = Matrix.create([
-                         [ 1, 0, 0, 0],
-                         [ 0, @cos_a, @sin_a, 0],
-                         [ 0, -@sin_a,  @cos_a, 0],
-                         [ 0, 0, 0, 1] ])
+    # @rotate_x  = Matrix.create([
+    #                      [ 1, 0, 0, 0],
+    #                      [ 0, @cos_a, @sin_a, 0],
+    #                      [ 0, -@sin_a,  @cos_a, 0],
+    #                      [ 0, 0, 0, 1] ])
 
-    @rotate_y  = Matrix.create([
-                         [ @cos_b, 0, -@sin_b, 0],
-                         [ 0, 1, 0, 0],
-                         [ @sin_b, 0,  @cos_b, 0],
-                         [ 0, 0, 0, 1] ])
+    # @rotate_y  = Matrix.create([
+    #                      [ @cos_b, 0, -@sin_b, 0],
+    #                      [ 0, 1, 0, 0],
+    #                      [ @sin_b, 0,  @cos_b, 0],
+    #                      [ 0, 0, 0, 1] ])
 
     @move_xy   = Matrix.create([ [1,0,0,0],
                          [0,1,0,0],
@@ -90,9 +94,19 @@ class Point
     @x = matr.e(1,1)
     @y = matr.e(1,2)
     @z = matr.e(1,3)
+  
+  move: (x=2800, y=1900, z=0) ->
+    move_matr = Matrix.create([ [1,0,0,0],
+                         [0,1,0,0],
+                         [0,0,1,0],
+                         [x, y, z,1] ])
+    point = $M([[@x, @y, @z, 1]])
+    result = point.x(move_matr)
+    @x = result.e(1,1)
+    @y = result.e(1,2)
+    @z = result.e(1,3)
 
   get_screen_projection: () ->
-    this.calculate_sin_cos()
     this.get_matrixes()
     point = $M([[@x, @y, @z, 1]])
 
@@ -104,6 +118,7 @@ class Point
       sy = nny_c
     else
       orth_math  = point.x(@project_xy).x(@move_xy)
+      
       sx = orth_math.e(1,1)
       sy = orth_math.e(1,2)
 
@@ -133,6 +148,8 @@ class PseudoSphere
     @prev_x_angle =  @x_angle
     @prev_y_angle =  @y_angle
     @prev_z_angle =  @z_angle
+
+    # Результирующая матрица для поворота
     @result_matr = Matrix.I(4)
 
   set_camera: (xang, yang, zang) ->
@@ -140,55 +157,56 @@ class PseudoSphere
     @y_angle = yang
     @x_angle = xang
   
+  # Считаем матрицу поворота. Стоит вынести за пределы текущего класса
   calc_rotate: (axis) ->
-    cos_a = Math.cos(@x_angle)
-    sin_a = Math.sin(@x_angle)
-    x_rotate = Matrix.create([
-                         [ 1, 0, 0, 0],
-                         [ 0, cos_a, sin_a, 0],
-                         [ 0, -sin_a,  cos_a, 0],
-                         [ 0, 0, 0, 1] ])
-    cos_b = Math.cos(@y_angle)
-    sin_b = Math.sin(@y_angle)
-    y_rotate = Matrix.create([
-                         [ cos_b, 0, -sin_b, 0],
-                         [ 0, 1, 0, 0],
-                         [ sin_b, 0,  cos_b, 0],
-                         [ 0, 0, 0, 1] ])
-    cos_c = Math.cos(@z_angle)
-    sin_c = Math.sin(@z_angle)
-    z_rotate = Matrix.create([
-                           [ cos_c, sin_c,  0, 0],
-                           [ -sin_c,cos_c,   0, 0],
-                           [ 0, 0, 1, 0],
-                           [ 0, 0, 0, 1]])
-    if axis == 'x'
-      return x_rotate
-    if axis == 'y'
-      return y_rotate
-    if axis == 'z'
-      return z_rotate
+    switch axis
+      when 'x'
+        cos_a = Math.cos(@x_angle)
+        sin_a = Math.sin(@x_angle)
+        return Matrix.create([
+                             [ 1, 0, 0, 0],
+                             [ 0, cos_a, sin_a, 0],
+                             [ 0, -sin_a,  cos_a, 0],
+                             [ 0, 0, 0, 1] ])
+      when 'y'
+        cos_b = Math.cos(@y_angle)
+        sin_b = Math.sin(@y_angle)
+        return Matrix.create([
+                             [ cos_b, 0, -sin_b, 0],
+                             [ 0, 1, 0, 0],
+                             [ sin_b, 0,  cos_b, 0],
+                             [ 0, 0, 0, 1] ])
+      when 'z'
+        cos_c = Math.cos(@z_angle)
+        sin_c = Math.sin(@z_angle)
+        return Matrix.create([
+                               [ cos_c, sin_c,  0, 0],
+                               [ -sin_c,cos_c,   0, 0],
+                               [ 0, 0, 1, 0],
+                               [ 0, 0, 0, 1]])
+
+  # Обновляем резулитриующую матрицу применяя операцию поворота( матрица = матрица*поворот_по_оси )
+  rotate_result_matr: (axis) ->
+    rot_matr = this.calc_rotate(axis)
+    @result_matr = @result_matr.x(rot_matr)
 
   set_camera_x_angle: ( val ) ->
     radian = Math.PI / 180
     @x_angle = val*radian - @prev_x_angle 
     @prev_x_angle = (val*Math.PI)/180
-    rot_matr = this.calc_rotate('x')
-    @result_matr = @result_matr.x(rot_matr)
+    this.rotate_result_matr('x')
 
   set_camera_y_angle: ( val ) ->
     radian = Math.PI / 180
     @y_angle = val*radian - @prev_y_angle
     @prev_y_angle = val*Math.PI/180
-    rot_matr = this.calc_rotate('y')
-    @result_matr = @result_matr.x(rot_matr)
+    this.rotate_result_matr('y')
 
   set_camera_z_angle: ( val ) ->
     radian = Math.PI / 180
     @z_angle = val*radian - @prev_z_angle
     @prev_z_angle = val*Math.PI/180
-    rot_matr = this.calc_rotate('z')
-    @result_matr = @result_matr.x(rot_matr)
+    this.rotate_result_matr('z')
 
   set_du_count: ( val ) ->
     @du_count = val
@@ -223,6 +241,9 @@ class PseudoSphere
     x = a * Math.sin( u ) * Math.cos( v ) 
     y = a * Math.sin( u ) * Math.sin( v ) 
     z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
+    # x = a * (1 + Math.os(v)) * Math.sin(u);
+    # y = a * (1 + Math.sin(v)) * Math.cos(u);
+    # z = -a * 2 * Math.tan(u - Math.PI) * Math.sin(v);
     return [x, y, z]
 
   sphere_3d_points: () ->
@@ -281,7 +302,6 @@ class PseudoSphere
       a += (first_surf_point[1] - second_surf_point[1]) * (first_surf_point[2] + second_surf_point[2])
       b += (first_surf_point[2] - second_surf_point[2]) * (first_surf_point[0] + second_surf_point[0])
       c += (first_surf_point[0] - second_surf_point[0]) * (first_surf_point[1] + second_surf_point[1])
-
     return [a, b, c]
 
   fill_segment: (segment) ->
@@ -307,6 +327,11 @@ class PseudoSphere
     if color != 0
       jc.line([segment[0], segment[4], segment[1], segment[2], segment[0]], color, true )
 
+  draw_axises: () ->
+    jc.line([[0,0],[100,0]])
+    jc.line([[0,0],[0,100]])
+    jc.text("x", 101, 10)
+    jc.text("y", 7, 101)
 
   draw: () ->
     jc.clear("canvas")
@@ -318,8 +343,9 @@ class PseudoSphere
     else
       for segment in segments
         jc.line(segment)
-    jc.line([[0,0],[100,0]])
-    jc.line([[0,0],[0,100]])
+    # Координатные оси
+    this.draw_axises()
+
 
 #------------------- Конец описания классов ---------------------------------------
 
@@ -338,8 +364,8 @@ $ ->
   col_val = 121
   u_min = 0
   u_max = 200
-  @angle_min = -90
-  @angle_max = 90
+  @angle_min = 0
+  @angle_max = 360
   @angle_val = 0
   @d_max = 50
   @d_min = 1
@@ -452,6 +478,8 @@ $ ->
     slide: (event, ui) ->
       $('.in_color #r p').html("r: #{ui.value} 	&isin; [0...255]")
       sp.set_in_color([ui.value,  $('.in_color #g').slider("value"), $('.in_color #b').slider("value") ])
+      color = "rgb(" + ui.value + "," + $('.in_color #g').slider("value") + "," + $('.in_color #b').slider("value") + ")"
+      $('#in_color_show').css('background-color', color)
       sp.draw()
 
   $('.in_color #g').slider
@@ -462,6 +490,8 @@ $ ->
     slide: (event, ui) ->
       $('.in_color #g p').html("g: #{ui.value} &isin; [0...255]")
       sp.set_in_color([$('.in_color #r').slider("value"),  ui.value, $('.in_color #b').slider("value") ])
+      color = "rgb(" + $('.in_color #r').slider("value") + "," + ui.value + "," + $('.in_color #b').slider("value") + ")"
+      $('#in_color_show').css('background-color', color)
       sp.draw()
 
   $('.in_color #b').slider
@@ -472,6 +502,8 @@ $ ->
     slide: (event, ui) ->
       $('.in_color #b p').html("b: #{ui.value} &isin; [0...255]")
       sp.set_in_color([$('.in_color #r').slider("value"),  $('.in_color #g').slider("value"), ui.value ])
+      color = "rgb(" + $('.in_color #r').slider("value") + "," + $('.in_color #g').slider("value") + "," + ui.value + ")"
+      $('#in_color_show').css('background-color', color)
       sp.draw()
 
   $('.out_color #r').slider
@@ -482,6 +514,8 @@ $ ->
     slide: (event, ui) ->
       $('.out_color #r p').html("r: #{ui.value} &isin; [0...255]")
       sp.set_out_color([ui.value,  $('.out_color #g').slider("value"), $('.out_color #b').slider("value") ])
+      color = "rgb(" + ui.value + "," + $('.out_color #g').slider("value") + "," + $('.out_color #b').slider("value") + ")"
+      $('#out_color_show').css('background-color', color)
       sp.draw()
 
   $('.out_color #g').slider
@@ -492,6 +526,8 @@ $ ->
     slide: (event, ui) ->
       $('.out_color #g p').html("g: #{ui.value} &isin; [0...255]")
       sp.set_out_color([$('.out_color #r').slider("value"),  ui.value, $('.out_color #b').slider("value") ])
+      color = "rgb(" + $('.out_color #r').slider("value") + "," + ui.value + "," + $('.out_color #b').slider("value") + ")"
+      $('#out_color_show').css('background-color', color)
       sp.draw()
 
   $('.out_color #b').slider
@@ -502,5 +538,7 @@ $ ->
     slide: (event, ui) ->
       $('.out_color #b p').html("b: #{ui.value} &isin; [0...255]")
       sp.set_out_color([$('.out_color #r').slider("value"),  $('.out_color #g').slider("value"), ui.value ])
+      color = "rgb(" + $('.out_color #r').slider("value") + "," + $('.out_color #g').slider("value") + "," +  ui.value + ")"
+      $('#out_color_show').css('background-color', color)
       sp.draw()
 

@@ -5,9 +5,9 @@
 - u_max = 3.14/2
 - v_max = 2*3.14
 
-- angle_min = -90
-- angle_max = 90
-- angle_val = 45
+- angle_min = 0
+- angle_max = 360
+- angle_val = 0
 - d_max = 50
 - d_min = 1
 - d_step = 1
@@ -18,6 +18,8 @@
 - v_val = 10
 - d_val = 20
 - a_val = -3
+- color_out = [123, 200, 20]
+- color_in = [255,255,22]
 
 
 #wrap
@@ -49,11 +51,11 @@
     .angle_sliders
       %h3 Поворот поверхности
       #angle_x
-        %p X: #{angle_val} &isin; [-90...90]
+        %p X: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
       #angle_y
-        %p Y: #{angle_val} &isin; [-90...90]
+        %p Y: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
       #angle_z
-        %p Z: #{angle_val} &isin; [-90...90]
+        %p Z: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
   #footer
     .color_sliders
       .in_color
@@ -64,6 +66,7 @@
           %p g: #{col_val} &isin; [0...255]
         #b
           %p b: #{col_val} &isin; [0...255]
+        #in_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(255,255,22); layer-background-color:#003366; visibility: visible" }
 
       .out_color
         %h3 Внешний цвет
@@ -73,4 +76,5 @@
           %p g: #{col_val} &isin; [0...255]
         #b
           %p b: #{col_val} &isin; [0...255]
+        #out_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(123, 200, 20); layer-background-color:#003366; visibility: visible" }
 
