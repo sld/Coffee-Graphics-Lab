@@ -5,8 +5,8 @@
 - u_max = 3.14/2
 - v_max = 2*3.14
 
-- angle_min = 0
-- angle_max = 360
+- angle_min = -90
+- angle_max = 90
 - angle_val = 0
 - d_max = 50
 - d_min = 1
@@ -36,12 +36,14 @@
           %p u: #{u_val} &isin; [0...200]
         #v
           %p v: #{v_val} &isin; [0...200]
+        #a
+          %p a:  #{a_val} &isin; [-10...10]
+      %h3 Параметры разбиения на сегменты
+      %span
         #step_u
           %p du: #{d_val} &isin; [0...50]
         #step_v
           %p dv: #{d_val} &isin; [0...50]
-        #a
-          %p a:  #{a_val} &isin; [-10...10]
 
     .filling
       %h3 --
@@ -49,7 +51,7 @@
       %input{:type => 'radio', :id => 'flat', :name => 'filling', :value => 'flat'} Flat - закраска
   #sidebar
     .angle_sliders
-      %h3 Поворот поверхности
+      %h3 Поворот поверхности вокруг осей координат
       #angle_x
         %p X: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
       #angle_y
@@ -61,20 +63,20 @@
       .in_color
         %h3 Внутренний цвет
         #r
-          %p r: #{col_val} &isin; [0...255]
+          %p r: #{color_in[0]} &isin; [0...255]
         #g
-          %p g: #{col_val} &isin; [0...255]
+          %p g: #{color_in[1]} &isin; [0...255]
         #b
-          %p b: #{col_val} &isin; [0...255]
+          %p b: #{color_in[2]} &isin; [0...255]
         #in_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(255,255,22); layer-background-color:#003366; visibility: visible" }
 
       .out_color
         %h3 Внешний цвет
         #r
-          %p r: #{col_val} &isin; [0...255]
+          %p r: #{color_out[0]} &isin; [0...255]
         #g
-          %p g: #{col_val} &isin; [0...255]
+          %p g: #{color_out[1]} &isin; [0...255]
         #b
-          %p b: #{col_val} &isin; [0...255]
+          %p b: #{color_out[2]} &isin; [0...255]
         #out_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(123, 200, 20); layer-background-color:#003366; visibility: visible" }
 

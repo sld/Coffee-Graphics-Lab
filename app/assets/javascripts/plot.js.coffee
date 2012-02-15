@@ -364,8 +364,8 @@ $ ->
   col_val = 121
   u_min = 0
   u_max = 200
-  @angle_min = 0
-  @angle_max = 360
+  @angle_min = -90
+  @angle_max = 90
   @angle_val = 0
   @d_max = 50
   @d_min = 1
@@ -373,6 +373,12 @@ $ ->
   @min_col = 0
   @max_col = 255
   @d_val = 20
+
+  # Делаем элементы управления перетаскиваемыми
+  $('.angle_sliders').draggable()
+  $('.in_color').draggable()
+  $('.out_color').draggable()
+  $('.surface_parameters').draggable()
 
   # Слайдеры для управления вращением объекта
   $('#angle_x').slider
