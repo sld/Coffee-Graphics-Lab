@@ -285,8 +285,9 @@ class PseudoSphere
       segments.push( [ points[i],  points[i + @dv_count + 1], points[i + @dv_count], points[i], points[i + 1] ])
 
     return segments
-
-  calculate_flat_abc: (segment) ->
+  
+  # Подсчёт координат вектора нормали для сегмента
+  calculate_normale: (segment) ->
     a = 0
     b = 0
     c = 0
@@ -304,8 +305,8 @@ class PseudoSphere
       c += (first_surf_point[0] - second_surf_point[0]) * (first_surf_point[1] + second_surf_point[1])
     return [a, b, c]
 
-  fill_segment: (segment) ->
-    abc = this.calculate_flat_abc( segment )
+  flat_filling: (segment) ->
+    abc = this.calculate_normale( segment )
     a = abc[0]
     b = abc[1]
     c = abc[2]
@@ -339,7 +340,7 @@ class PseudoSphere
     segments = this.sphere_segments()
     if @flat
       for segment in segments
-        this.fill_segment(segment)
+        this.flat_filling(segment)
     else
       for segment in segments
         jc.line(segment)
