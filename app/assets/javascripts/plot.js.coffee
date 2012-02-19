@@ -193,19 +193,19 @@ class PseudoSphere
   set_camera_x_angle: ( val ) ->
     radian = Math.PI / 180
     @x_angle = val*radian - @prev_x_angle 
-    @prev_x_angle = (val*Math.PI)/180
+    @prev_x_angle = val*radian
     this.rotate_result_matr('x')
 
   set_camera_y_angle: ( val ) ->
     radian = Math.PI / 180
     @y_angle = val*radian - @prev_y_angle
-    @prev_y_angle = val*Math.PI/180
+    @prev_y_angle = val*radian
     this.rotate_result_matr('y')
 
   set_camera_z_angle: ( val ) ->
     radian = Math.PI / 180
     @z_angle = val*radian - @prev_z_angle
-    @prev_z_angle = val*Math.PI/180
+    @prev_z_angle = val*radian
     this.rotate_result_matr('z')
 
   set_du_count: ( val ) ->
@@ -218,7 +218,7 @@ class PseudoSphere
     @u_max = val * Math.PI / 180
 
   set_v: ( val ) ->
-    @u_min = val * Math.PI / 180
+    @v_max = val * Math.PI / 180
 
   set_flat: ( val ) ->
     @flat = val
@@ -248,8 +248,8 @@ class PseudoSphere
 
   sphere_3d_points: () ->
     points = []
-    @du = (Math.abs(@u_max - @u_min) / (@du_count))
-    @dv = (Math.abs(@v_max - @v_min) / (@dv_count)) 
+    @du = ((@u_max - @u_min) / (@du_count))
+    @dv = ((@v_max - @v_min) / (@dv_count)) 
     u = @u_min
     v = @v_min
     u_max = @u_max - @du/2
@@ -257,11 +257,29 @@ class PseudoSphere
 
     while u < u_max
       while v < v_max
-        v += @dv
         points.push( this.point_equation(u, v) )
+        v += @dv
       u += @du
       v = @v_min
     return points
+
+    bad_smell_code: () ->
+      points = []
+      segments = []
+      @du = (Math.abs(@u_max - @u_min) / (@du_count))
+      @dv = (Math.abs(@v_max - @v_min) / (@dv_count)) 
+      u = @u_min
+      v = @v_min
+      u_max = @u_max #- @du/2
+      v_max = @v_max #+ @dv/2
+
+      while u < u_max
+        while v < v_max
+          v += @dv
+          points.push( this.point_equation(u, v) )
+        u += @du
+        v = @v_min
+      return points
   
   # Вся твоя ошибка заключалась в том что ты дебил блять!
   # Ты делаешь диференс углов, получаешь нормальный результат, но не поварачивается!
@@ -269,7 +287,6 @@ class PseudoSphere
   sphere_screen_points: () ->
     points = this.sphere_3d_points()
     screen_points = []
-
     for point in points
       to_p = new Point( point[0], point[1], point[2], @x_angle, @y_angle, @z_angle )
       to_p.multiplicate(@result_matr)
@@ -277,12 +294,58 @@ class PseudoSphere
       @to_newel[to_p] = [ point[0], point[1], point[2] ]
       screen_points.push( to_p )
     return screen_points
+  
+  sphere_filling_segments: () ->
+    points = this.sphere_screen_points()
+    segments = []
+    for i in [0...points.length - @dv_count - 1]
+      segments.push( [ points[i],  points[i + 1], points[i + @dv_count + 1], points[i + @dv_count], points[i] ])
+
+    return segments
 
   sphere_segments: () ->
     points = this.sphere_screen_points()
     segments = []
-    for i in [0...points.length - @dv_count - 1]
-      segments.push( [ points[i],  points[i + @dv_count + 1], points[i + @dv_count], points[i], points[i + 1] ])
+
+    # for k in [0...@du_count*(@dv_count + 1)]
+    #   if ( k % (@dv_count + 1) != 0 )
+    #     poly_one =  [points[k], points[k+1], points[ k + 1 + @dv_count]]
+    #     poly_two =  [points[k+1], points[k+@dv_count], points[ k + 1 + @dv_count]]
+      
+    
+    # NOTE: :::::::::::::::
+    # ПОхоже что именно out color считается плохо
+    for v_ind in [0...@du_count-1]
+      for u_ind in [0...@dv_count]
+        # 1*@dv_count + 1, 2*@dv_count + 2
+        point_one = v_ind * @dv_count + v_ind + u_ind
+        point_two = point_one + 1
+        point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
+        point_four = point_three + 1
+        #if point_ind < points.length - 1
+        poly_one = [points[point_one], points[point_two], points[point_three], points[point_one] ] #, points[point_three]]
+        poly_two = [points[point_four], points[point_two], points[point_three], points[point_four]]
+        poly_three = [points[point_three], points[point_four], points[point_two]]
+        if (v_ind == 1)
+          @debug_points = [points[point_one], points[point_two], points[point_three], points[point_four] ]
+        
+        #if (v_ind % (@dv_count) != 0)
+        segments.push( poly_one )
+        segments.push( poly_two )
+        segments.push(poly_three)
+    # for i in [0...points.length - @dv_count - 1]
+    #   poly_one = [points[i], points[i + @dv_count + 1], points[ i + @dv_count] ]
+    #   poly_two = [points[i + @dv_count], points[i], points[i + 1] ]
+    #   poly_two = [ points[i + @dv_count + 1], points[i + 1] ]
+    #   old_poly = [ points[i],  points[i + @dv_count + 1], points[i + @dv_count], points[i], points[i + 1] ]
+    #   if (i == points.length - @dv_count - 2)
+    #     @debug_points = [ points[i], points[i + @dv_count + 1], points[ i + @dv_count], 
+    #                       points[@dv_count + 1], points[@dv_count*2 + 2], points[i + 1] ]
+    #   if (i % (@dv_count+1) != 0 )
+    #     segments.push( poly_one )
+    #     #segments.push( poly_two )
+    #   #if ( i % (@dv_count + 1 ) != 0)
+    #   #  segments.push( poly_two )
 
     return segments
   
@@ -292,8 +355,8 @@ class PseudoSphere
     b = 0
     c = 0
     j = 0
-    for i in [0...segment.length - 1]
-      if i == segment.length - 2
+    for i in [0...segment.length ]
+      if i == segment.length - 1
         j = 1
       else
         j = i + 1
@@ -326,9 +389,21 @@ class PseudoSphere
       color = "rgb(#{color_out[0]},#{color_out[1]},#{color_out[2]})"
 
     if color != 0
-      jc.line([segment[0], segment[4], segment[1], segment[2], segment[0]], color, true )
+      jc.line([segment[0], segment[1], segment[2]], color, true )
 
   draw_axises: () ->
+    points = this.sphere_screen_points()
+    # for i in [0...points.length - @du_count - 1]
+    jc.text(" point_one ", @debug_points[0][0], @debug_points[0][1])
+    jc.text(" point_two ",  @debug_points[1][0], @debug_points[1][1])
+    jc.text(" point_three ",  @debug_points[2][0], @debug_points[2][1])
+    jc.text(" point_four ",  @debug_points[3][0], @debug_points[3][1])
+    #jc.text(" @dv_count*2 + 2",  @debug_points[4][0], @debug_points[4][1])
+    #jc.text(" i + 1 ",  @debug_points[5][0], @debug_points[5][1])
+    #   jc.text(" i + @du_count ", points[i + @du_count][0], points[i+@du_count][1])
+    #   #jc.text(" i + @dv_count + 1 ", points[i + @dv_count + 1][0], points[i + @dv_count + 1][1])
+    #   poly_one = [points[i], points[i + @dv_count + 1], points[ i + @dv_count] ]
+    #   poly_two = [points[i + @dv_count], points[i], points[i + 1]]
     jc.line([[0,0],[100,0]])
     jc.line([[0,0],[0,100]])
     jc.text("x", 101, 10)
@@ -338,6 +413,7 @@ class PseudoSphere
     jc.clear("canvas")
     jc.start('canvas', true)
     segments = this.sphere_segments()
+    filling_segments = this.sphere_filling_segments()
     if @flat
       for segment in segments
         this.flat_filling(segment)
@@ -363,8 +439,7 @@ $ ->
   u_val = 100
   v_val = 10
   col_val = 121
-  u_min = 0
-  u_max = 200
+  radian = 180/Math.PI
   @angle_min = -90
   @angle_max = 90
   @angle_val = 0
@@ -414,8 +489,8 @@ $ ->
 
    # Слайдеры для управления параметрами поверхности
    $('#u').slider
-    min: u_min
-    max: u_max
+    min: u_min*radian
+    max: u_max*radian
     value: u_val
     slide: (event, ui) ->
       $('#u p').html("U: #{ui.value} &isin; [0...200]")
@@ -423,8 +498,8 @@ $ ->
       sp.draw()
 
   $('#v').slider
-    min: u_min
-    max: u_max
+    min: v_min*radian
+    max: v_max*radian
     value: v_val
     slide: (event, ui) ->
       $('#v p').html("V: #{ui.value} &isin; [0...200]")
