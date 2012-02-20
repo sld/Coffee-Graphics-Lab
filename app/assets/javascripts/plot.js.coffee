@@ -52,6 +52,14 @@ class Point
   #   @sin_c = Math.sin( @z_angle )
   #   @cos_c = Math.cos( @z_angle )
 
+  get_x: () ->
+    return @x
+  
+  get_y: () ->
+    return @y
+
+  get_z: () ->
+    return @z
 
   get_matrixes: () ->
     # @rotate_z  = Matrix.create([
@@ -288,33 +296,45 @@ class PseudoSphere
     points = this.sphere_3d_points()
     screen_points = []
     for point in points
-      to_p = new Point( point[0], point[1], point[2], @x_angle, @y_angle, @z_angle )
-      to_p.multiplicate(@result_matr)
-      to_p = to_p.get_screen_projection()
-      @to_newel[to_p] = [ point[0], point[1], point[2] ]
+      working_point = new Point( point[0], point[1], point[2], @x_angle, @y_angle, @z_angle )
+      working_point.multiplicate(@result_matr)
+      to_p = working_point.get_screen_projection()
+      @to_newel[to_p] = [ working_point.get_x(), working_point.get_y(), working_point.get_z() ]
       screen_points.push( to_p )
     return screen_points
   
   sphere_filling_segments: () ->
     points = this.sphere_screen_points()
     segments = []
-    for i in [0...points.length - @dv_count - 1]
-      segments.push( [ points[i],  points[i + 1], points[i + @dv_count + 1], points[i + @dv_count], points[i] ])
-
+    # NOTE: :::::::::::::::
+    # ПОхоже что именно out color считается плохо
+    # Кароче говоря посмотри вычисление нормали - у тебя только две точки используются вместо 4х  
+    for v_ind in [0...@du_count-1]
+      for u_ind in [0...@dv_count]
+        # 1*@dv_count + 1, 2*@dv_count + 2
+        point_one = v_ind * @dv_count + v_ind + u_ind
+        point_two = point_one + 1
+        point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
+        point_four = point_three + 1
+        #if point_ind < points.length - 1
+        poly_one = [points[point_one], points[point_two], points[point_three], points[point_one] ] #, points[point_three]]
+        poly_two = [points[point_four], points[point_two], points[point_three], points[point_four]]
+        poly_three = [points[point_three], points[point_four], points[point_two]]
+        if (v_ind == 1)
+          @debug_points = [points[point_one], points[point_two], points[point_three], points[point_four] ]
+        
+        #if (v_ind % (@dv_count) != 0)
+        #segments.push( poly_one )
+        poly_four = [points[point_one], points[point_two], points[point_four], points[point_three], points[point_one]]
+        segments.push( poly_four )
     return segments
-
+  
   sphere_segments: () ->
     points = this.sphere_screen_points()
     segments = []
-
-    # for k in [0...@du_count*(@dv_count + 1)]
-    #   if ( k % (@dv_count + 1) != 0 )
-    #     poly_one =  [points[k], points[k+1], points[ k + 1 + @dv_count]]
-    #     poly_two =  [points[k+1], points[k+@dv_count], points[ k + 1 + @dv_count]]
-      
-    
     # NOTE: :::::::::::::::
     # ПОхоже что именно out color считается плохо
+    # Кароче говоря посмотри вычисление нормали - у тебя только две точки используются вместо 4х  
     for v_ind in [0...@du_count-1]
       for u_ind in [0...@dv_count]
         # 1*@dv_count + 1, 2*@dv_count + 2
@@ -332,21 +352,6 @@ class PseudoSphere
         #if (v_ind % (@dv_count) != 0)
         segments.push( poly_one )
         segments.push( poly_two )
-        segments.push(poly_three)
-    # for i in [0...points.length - @dv_count - 1]
-    #   poly_one = [points[i], points[i + @dv_count + 1], points[ i + @dv_count] ]
-    #   poly_two = [points[i + @dv_count], points[i], points[i + 1] ]
-    #   poly_two = [ points[i + @dv_count + 1], points[i + 1] ]
-    #   old_poly = [ points[i],  points[i + @dv_count + 1], points[i + @dv_count], points[i], points[i + 1] ]
-    #   if (i == points.length - @dv_count - 2)
-    #     @debug_points = [ points[i], points[i + @dv_count + 1], points[ i + @dv_count], 
-    #                       points[@dv_count + 1], points[@dv_count*2 + 2], points[i + 1] ]
-    #   if (i % (@dv_count+1) != 0 )
-    #     segments.push( poly_one )
-    #     #segments.push( poly_two )
-    #   #if ( i % (@dv_count + 1 ) != 0)
-    #   #  segments.push( poly_two )
-
     return segments
   
   # Подсчёт координат вектора нормали для сегмента
@@ -355,9 +360,9 @@ class PseudoSphere
     b = 0
     c = 0
     j = 0
-    for i in [0...segment.length ]
-      if i == segment.length - 1
-        j = 1
+    for i in [0...segment.length - 2]
+      if i == segment.length - 2
+        j = 0
       else
         j = i + 1
       first_surf_point = @to_newel[ segment[i] ]
@@ -373,23 +378,24 @@ class PseudoSphere
     a = abc[0]
     b = abc[1]
     c = abc[2]
-    cos_s_n = -c / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c , 2) )
-    color_in = [0, 0, 0]
-    color_out = [0, 0, 0]
-    color = 0
+    length_n = Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c , 2) )
+    cos_s_n = -c / length_n
+    color_in = [undefined, undefined, undefined]
+    color_out = [undefined, undefined, undefined]
+    color = ""
     if cos_s_n < 0
-      color_in[0] = Math.round( @color_in[0]*(-cos_s_n))
-      color_in[1] = Math.round(@color_in[1]*(-cos_s_n))
-      color_in[2] = Math.round(@color_in[2]*(-cos_s_n))
+      color_in[0] = ( @color_in[0]*(-cos_s_n))
+      color_in[1] = (@color_in[1]*(-cos_s_n))
+      color_in[2] = (@color_in[2]*(-cos_s_n))
       color = "rgb(#{color_in[0]},#{color_in[1]},#{color_in[2]})"
-    else if cos_s_n > 0
-      color_out[0] = Math.round(@color_out[0]*cos_s_n)
-      color_out[1] = Math.round(@color_out[1]*cos_s_n)
-      color_out[2] = Math.round(@color_out[2]*cos_s_n)
+    else 
+      color_out[0] = (@color_out[0]*cos_s_n)
+      color_out[1] = (@color_out[1]*cos_s_n)
+      color_out[2] = (@color_out[2]*cos_s_n)
       color = "rgb(#{color_out[0]},#{color_out[1]},#{color_out[2]})"
 
     if color != 0
-      jc.line([segment[0], segment[1], segment[2]], color, true )
+      jc.line(segment, color, true )
 
   draw_axises: () ->
     points = this.sphere_screen_points()
@@ -415,7 +421,7 @@ class PseudoSphere
     segments = this.sphere_segments()
     filling_segments = this.sphere_filling_segments()
     if @flat
-      for segment in segments
+      for segment in filling_segments
         this.flat_filling(segment)
     else
       for segment in segments
@@ -440,8 +446,8 @@ $ ->
   v_val = 10
   col_val = 121
   radian = 180/Math.PI
-  @angle_min = -90
-  @angle_max = 90
+  @angle_min = -4*90
+  @angle_max = 4*90
   @angle_val = 0
   @d_max = 50
   @d_min = 1
