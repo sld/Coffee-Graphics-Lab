@@ -271,24 +271,6 @@ class PseudoSphere
       v = @v_min
     return points
 
-    bad_smell_code: () ->
-      points = []
-      segments = []
-      @du = (Math.abs(@u_max - @u_min) / (@du_count))
-      @dv = (Math.abs(@v_max - @v_min) / (@dv_count)) 
-      u = @u_min
-      v = @v_min
-      u_max = @u_max #- @du/2
-      v_max = @v_max #+ @dv/2
-
-      while u < u_max
-        while v < v_max
-          v += @dv
-          points.push( this.point_equation(u, v) )
-        u += @du
-        v = @v_min
-      return points
-  
   # Вся твоя ошибка заключалась в том что ты дебил блять!
   # Ты делаешь диференс углов, получаешь нормальный результат, но не поварачивается!
   # А всё потому что не надо всё время заново создавать точки, а работать с имеющимися!!!
@@ -316,17 +298,10 @@ class PseudoSphere
         point_two = point_one + 1
         point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
         point_four = point_three + 1
-        #if point_ind < points.length - 1
-        poly_one = [points[point_one], points[point_two], points[point_three], points[point_one] ] #, points[point_three]]
-        poly_two = [points[point_four], points[point_two], points[point_three], points[point_four]]
-        poly_three = [points[point_three], points[point_four], points[point_two]]
-        if (v_ind == 1)
-          @debug_points = [points[point_one], points[point_two], points[point_three], points[point_four] ]
         
-        #if (v_ind % (@dv_count) != 0)
-        #segments.push( poly_one )
         poly_four = [points[point_one], points[point_two], points[point_four], points[point_three], points[point_one]]
         segments.push( poly_four )
+
     return segments
   
   sphere_segments: () ->
@@ -337,19 +312,15 @@ class PseudoSphere
     # Кароче говоря посмотри вычисление нормали - у тебя только две точки используются вместо 4х  
     for v_ind in [0...@du_count-1]
       for u_ind in [0...@dv_count]
-        # 1*@dv_count + 1, 2*@dv_count + 2
+
         point_one = v_ind * @dv_count + v_ind + u_ind
         point_two = point_one + 1
         point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
         point_four = point_three + 1
-        #if point_ind < points.length - 1
-        poly_one = [points[point_one], points[point_two], points[point_three], points[point_one] ] #, points[point_three]]
-        poly_two = [points[point_four], points[point_two], points[point_three], points[point_four]]
-        poly_three = [points[point_three], points[point_four], points[point_two]]
-        if (v_ind == 1)
-          @debug_points = [points[point_one], points[point_two], points[point_three], points[point_four] ]
-        
-        #if (v_ind % (@dv_count) != 0)
+ 
+        poly_one = [points[point_one], points[point_two], points[point_three]]
+        poly_two = [points[point_four], points[point_two], points[point_three]]
+
         segments.push( poly_one )
         segments.push( poly_two )
     return segments
@@ -360,8 +331,8 @@ class PseudoSphere
     b = 0
     c = 0
     j = 0
-    for i in [0...segment.length - 2]
-      if i == segment.length - 2
+    for i in [0...segment.length ]
+      if i == segment.length - 1
         j = 0
       else
         j = i + 1
@@ -373,7 +344,7 @@ class PseudoSphere
       c += (first_surf_point[0] - second_surf_point[0]) * (first_surf_point[1] + second_surf_point[1])
     return [a, b, c]
 
-  flat_filling: (segment) ->
+  flat_filling: (segment, ctx) ->
     abc = this.calculate_normale( segment )
     a = abc[0]
     b = abc[1]
@@ -384,50 +355,187 @@ class PseudoSphere
     color_out = [undefined, undefined, undefined]
     color = ""
     if cos_s_n < 0
-      color_in[0] = ( @color_in[0]*(-cos_s_n))
-      color_in[1] = (@color_in[1]*(-cos_s_n))
-      color_in[2] = (@color_in[2]*(-cos_s_n))
+      color_in[0] = Math.round( @color_in[0]*(-cos_s_n))
+      color_in[1] = Math.round(@color_in[1]*(-cos_s_n))
+      color_in[2] = Math.round(@color_in[2]*(-cos_s_n))
       color = "rgb(#{color_in[0]},#{color_in[1]},#{color_in[2]})"
     else 
-      color_out[0] = (@color_out[0]*cos_s_n)
-      color_out[1] = (@color_out[1]*cos_s_n)
-      color_out[2] = (@color_out[2]*cos_s_n)
+      color_out[0] = Math.round(@color_out[0]*cos_s_n)
+      color_out[1] = Math.round(@color_out[1]*cos_s_n)
+      color_out[2] = Math.round(@color_out[2]*cos_s_n)
       color = "rgb(#{color_out[0]},#{color_out[1]},#{color_out[2]})"
 
     if color != 0
-      jc.line(segment, color, true )
+      ctx.fillStyle = color; 
+      ctx.beginPath()
+      ctx.moveTo(segment[0][0], segment[0][1])
+      ctx.lineTo(segment[1][0], segment[1][1])
+      ctx.lineTo(segment[2][0], segment[2][1])
+      ctx.lineTo(segment[3][0], segment[3][1])
+      ctx.lineTo(segment[4][0], segment[4][1])
+      ctx.fill()
+  
+  swap: (a, b) ->
+    t = a
+    a = b
+    b = t
+  
+  modified_flat_filling: (segment) ->
+    working_segment = segment
+    
+    a = working_segment[0]
+    b = working_segment[1]
+    c = working_segment[2]
+    pixels = []
 
-  draw_axises: () ->
-    points = this.sphere_screen_points()
-    # for i in [0...points.length - @du_count - 1]
-    jc.text(" point_one ", @debug_points[0][0], @debug_points[0][1])
-    jc.text(" point_two ",  @debug_points[1][0], @debug_points[1][1])
-    jc.text(" point_three ",  @debug_points[2][0], @debug_points[2][1])
-    jc.text(" point_four ",  @debug_points[3][0], @debug_points[3][1])
+    # Сортируем вершины по y
+    if a[1] > b[1]
+      this.swap(working_segment[0], working_segment[1])
+    if b[1] > c[1]
+      this.swap(working_segment[1], working_segment[2])
+    if a[1] > c[1]
+      this.swap(working_segment[0], working_segment[2])
+    
+    a = working_segment[0]
+    b = working_segment[1]
+    c = working_segment[2]
+
+    x1 = a[0]
+    y1 = a[1]
+    x2 = b[0]
+    y2 = b[1]
+    x3 = c[0]
+    y3 = c[1]
+
+    dx13 = 0
+    dx12 = 0
+    dx23 = 0
+
+    # Вычисляем приращения
+    if (y3 != y1)
+      dx13 = x3 - x1
+      dx13 = dx13 / (y3 - y1)
+    
+    if (y2 != y1)
+      dx12 = x2 - x1
+      dx12 = dx12 / (y2 - y1)
+    
+    if (y3 != y2)
+      dx23 = (x3 - x2)
+      dx23 = dx23 / (y3 - y2)
+    
+    wx1 = x1
+    wx2 = wx1
+
+    _dx13 = dx13
+
+    if (dx13 > dx12)
+      this.swap( dx13, dx12 )
+    
+    # Рисованеи верхнего треугольника
+    `
+    for( i = Math.round(y1); i < y2; i++ )
+    {
+      for ( j = Math.round(wx1); j <= wx2; j++ )
+      {
+        pixels.push( [j, i] );
+      }
+      wx1 += dx13;
+      wx2 += dx12;
+    }
+    `
+    
+    if (y1 == y2)
+      wx1 = x1
+      wx2 = x2
+    
+    # if Math.abs(y1 - y2) < 0.01
+    #   wx1 = x1
+    #   wx2 = x2
+    #   this.swap(wx1, wx2) if wx1 > wx2
+
+    if (_dx13 < dx23)
+      this.swap( _dx13, dx23 )
+    
+    # Растеризация нижнего треугольника
+    `
+    for( i = Math.round(y2); i <= y3; i++ )
+    {
+      for ( j = Math.round(wx1); j <= wx2; j++ )
+      {
+        pixels.push( [j, i] );
+      }
+      wx1 += _dx13;
+      wx2 += dx23;
+    }
+    ` 
+    return pixels
+
+  draw_axises: ( ctx ) ->
+    # points = this.sphere_screen_points()
+    # # for i in [0...points.length - @du_count - 1]
+    # jc.text(" point_one ", @debug_points[0][0], @debug_points[0][1])
+    # jc.text(" point_two ",  @debug_points[1][0], @debug_points[1][1])
+    # jc.text(" point_three ",  @debug_points[2][0], @debug_points[2][1])
+    # jc.text(" point_four ",  @debug_points[3][0], @debug_points[3][1])
     #jc.text(" @dv_count*2 + 2",  @debug_points[4][0], @debug_points[4][1])
     #jc.text(" i + 1 ",  @debug_points[5][0], @debug_points[5][1])
     #   jc.text(" i + @du_count ", points[i + @du_count][0], points[i+@du_count][1])
     #   #jc.text(" i + @dv_count + 1 ", points[i + @dv_count + 1][0], points[i + @dv_count + 1][1])
     #   poly_one = [points[i], points[i + @dv_count + 1], points[ i + @dv_count] ]
     #   poly_two = [points[i + @dv_count], points[i], points[i + 1]]
-    jc.line([[0,0],[100,0]])
-    jc.line([[0,0],[0,100]])
-    jc.text("x", 101, 10)
-    jc.text("y", 7, 101)
+    ctx.beginPath()
+    ctx.moveTo(0,0)
+    ctx.lineTo(100,0)
+    ctx.closePath()
+    ctx.stroke()
+
+    ctx.beginPath()
+    ctx.moveTo(0,0)
+    ctx.lineTo(0,100)
+    ctx.closePath()
+    ctx.stroke()
+
+    ctx.fillText("x", 101, 10)
+    ctx.fillText("y", 7, 101)
+
+  setPixel: (imageData, x, y, r, g, b, a) ->
+    index = (x + y * imageData.width) * 4;
+    imageData.data[index+0] = r;
+    imageData.data[index+1] = g;
+    imageData.data[index+2] = b;
+    imageData.data[index+3] = a;
 
   draw: () ->
-    jc.clear("canvas")
-    jc.start('canvas', true)
-    segments = this.sphere_segments()
-    filling_segments = this.sphere_filling_segments()
-    if @flat
-      for segment in filling_segments
-        this.flat_filling(segment)
+    canvas = document.getElementById('canvas')
+    ctx = canvas.getContext('2d')
+    ctx.save()
+    # Use the identity matrix while clearing the canvas
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    # Restore the transform
+    ctx.restore()
+
+    if @flat  
+      canvasData = ctx.createImageData(canvas.width, canvas.height);
+      filling_segments = this.sphere_filling_segments()
+      for segment in filling_segments 
+        this.flat_filling(segment, ctx)
+      #   pxls = this.modified_flat_filling(segment)
+      #   for pxl in pxls
+      #     this.setPixel(canvasData, pxl[0], pxl[1], 100, 200, 100, 255)
+      # ctx.putImageData( canvasData, 0, 0 )
     else
+      segments = this.sphere_segments()
       for segment in segments
-        jc.line(segment)
-    # Координатные оси
-    this.draw_axises()
+        ctx.beginPath()
+        ctx.moveTo(segment[0][0], segment[0][1])
+        ctx.lineTo(segment[1][0], segment[1][1])
+        ctx.lineTo(segment[2][0], segment[2][1])
+        ctx.closePath()
+        ctx.stroke()
+
+    this.draw_axises(ctx)
 
 
 #------------------- Конец описания классов ---------------------------------------
