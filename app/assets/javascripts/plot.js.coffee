@@ -157,13 +157,15 @@ class PseudoSphere
     @prev_y_angle =  @y_angle
     @prev_z_angle =  @z_angle
 
+    @flat_with_zbuffer = false
+
     # Результирующая матрица для поворота
     @result_matr = Matrix.I(4)
 
-  set_camera: (xang, yang, zang) ->
-    @z_angle = zang
-    @y_angle = yang
-    @x_angle = xang
+  # set_camera: (xang, yang, zang) ->
+  #   @z_angle = zang
+  #   @y_angle = yang
+  #   @x_angle = xang
   
   # Считаем матрицу поворота. Стоит вынести за пределы текущего класса
   calc_rotate: (axis) ->
@@ -200,6 +202,7 @@ class PseudoSphere
 
   set_camera_x_angle: ( val ) ->
     radian = Math.PI / 180
+    #console.log([@result_matr])
     @x_angle = val*radian - @prev_x_angle 
     @prev_x_angle = val*radian
     this.rotate_result_matr('x')
@@ -230,6 +233,11 @@ class PseudoSphere
 
   set_flat: ( val ) ->
     @flat = val
+    @flat_with_zbuffer = false
+
+  set_flat_with_zbuffer: ( val ) ->
+    @flat_with_zbuffer = val
+    @flat = false
 
   set_surface_parameter: ( val ) ->
     @surface_parameter = val
@@ -249,7 +257,7 @@ class PseudoSphere
     x = a * Math.sin( u ) * Math.cos( v ) 
     y = a * Math.sin( u ) * Math.sin( v ) 
     z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
-    # x = a * (1 + Math.os(v)) * Math.sin(u);
+    # x = a * (1 + Math.cos(v)) * Math.sin(u);
     # y = a * (1 + Math.sin(v)) * Math.cos(u);
     # z = -a * 2 * Math.tan(u - Math.PI) * Math.sin(v);
     return [x, y, z]
@@ -265,8 +273,8 @@ class PseudoSphere
 
     while u < u_max
       while v < v_max
-        points.push( this.point_equation(u, v) )
         v += @dv
+        points.push( this.point_equation(u, v) )
       u += @du
       v = @v_min
     return points
@@ -283,6 +291,7 @@ class PseudoSphere
       to_p = working_point.get_screen_projection()
       @to_newel[to_p] = [ working_point.get_x(), working_point.get_y(), working_point.get_z() ]
       screen_points.push( to_p )
+
     return screen_points
   
   sphere_filling_segments: () ->
@@ -319,12 +328,37 @@ class PseudoSphere
         point_four = point_three + 1
  
         poly_one = [points[point_one], points[point_two], points[point_three]]
-        poly_two = [points[point_four], points[point_two], points[point_three]]
+        poly_two = [points[point_four], points[point_three], points[point_two]]
 
         segments.push( poly_one )
         segments.push( poly_two )
     return segments
-  
+
+  sphere_zbuffer_segments: () ->
+    points = this.sphere_screen_points()
+    segments = []
+    # NOTE: :::::::::::::::
+    # ПОхоже что именно out color считается плохо
+    # Кароче говоря посмотри вычисление нормали - у тебя только две точки используются вместо 4х  
+    for v_ind in [0...@du_count-1]
+      for u_ind in [0...@dv_count]
+        point_one = v_ind * @dv_count + v_ind + u_ind
+        point_two = point_one + 1
+        point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
+        point_four = point_three + 1
+ 
+        poly_one = [points[point_one], points[point_two], points[point_three]]
+        poly_two = [points[point_four], points[point_three], points[point_two]]
+        poly_three = [points[point_two], points[point_three], points[point_one] ]
+        poly_four = [ points[point_three], points[point_two], points[point_four] ]
+
+        segments.push( poly_one )
+        segments.push( poly_two )
+        segments.push( poly_three )
+        segments.push( poly_four )
+    return segments
+
+
   # Подсчёт координат вектора нормали для сегмента
   calculate_normale: (segment) ->
     a = 0
@@ -367,6 +401,11 @@ class PseudoSphere
 
     if color != 0
       ctx.fillStyle = color; 
+      # ctx.beginPath()
+      # ctx.moveTo(segment[0][0], segment[0][1])
+      # ctx.lineTo(segment[1][0], segment[1][1])
+      # ctx.lineTo(segment[2][0], segment[2][1])
+      # ctx.fill()
       ctx.beginPath()
       ctx.moveTo(segment[0][0], segment[0][1])
       ctx.lineTo(segment[1][0], segment[1][1])
@@ -374,14 +413,58 @@ class PseudoSphere
       ctx.lineTo(segment[3][0], segment[3][1])
       ctx.lineTo(segment[4][0], segment[4][1])
       ctx.fill()
+
+  flat_filling_with_zbuffer: (segment, ctx, canvasData) ->
+    abc = this.calculate_normale( segment )
+    a = abc[0]
+    b = abc[1]
+    c = abc[2]
+    length_n = Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c , 2) )
+    cos_s_n = -c / length_n
+    color_in = [undefined, undefined, undefined]
+    color_out = [undefined, undefined, undefined]
+    color_arr = []
+    if cos_s_n < 0 && cos_s_n >= -1
+      color_in[0] = Math.round( @color_in[0]*(-cos_s_n))
+      color_in[1] = Math.round(@color_in[1]*(-cos_s_n))
+      color_in[2] = Math.round(@color_in[2]*(-cos_s_n))
+      color_arr = [ color_in[0], color_in[1], color_in[2] ]
+    else if cos_s_n > 0 && cos_s_n <= 1
+      color_out[0] = Math.round(@color_out[0]*cos_s_n)
+      color_out[1] = Math.round(@color_out[1]*cos_s_n)
+      color_out[2] = Math.round(@color_out[2]*cos_s_n)
+      color_arr = [ color_out[0], color_out[1], color_out[2] ]
+
+    if color_arr != []
+      pixels = this.rasterization(segment)
+      for pxl in pixels
+        x = pxl[0]
+        y = pxl[1]
+        if ( x > 0 && y > 0 && x < 600 && y < 600 )
+          z = this.calculate_z( segment[0], a, b, c, x, y )
+          if ( z > @zbuffer[x][y] )  
+            @zbuffer[x][y] = z
+            this.setPixel(canvasData, x, y, color_arr[0], color_arr[1], color_arr[2], 255)
   
-  swap: (a, b) ->
-    t = a
-    a = b
-    b = t
-  
-  modified_flat_filling: (segment) ->
-    working_segment = segment
+  calculate_z: ( point, a, b, c, x, y ) ->
+    surf_point = @to_newel[ point ]
+    d = -(a*surf_point[0] + b*surf_point[1] + c*surf_point[2])
+    ans = -(a * x + b * y + d  ) / c
+    return ans
+
+  ` 
+  Array.prototype.swap = function (x,y) {
+    var b = this[x];
+    this[x] = this[y];
+    this[y] = b;
+    return this;
+  }
+  `
+  rasterization: (segment) ->
+    working_segment = [1, 2, 3]
+    working_segment[0] = segment[0]
+    working_segment[1] = segment[1]
+    working_segment[2] = segment[2]
     
     a = working_segment[0]
     b = working_segment[1]
@@ -390,12 +473,23 @@ class PseudoSphere
 
     # Сортируем вершины по y
     if a[1] > b[1]
-      this.swap(working_segment[0], working_segment[1])
-    if b[1] > c[1]
-      this.swap(working_segment[1], working_segment[2])
+      working_segment.swap(0, 1)
     if a[1] > c[1]
-      this.swap(working_segment[0], working_segment[2])
-    
+      working_segment.swap(0, 2)
+    if b[1] > c[1]
+      working_segment.swap(1, 2)
+
+    a = working_segment[0]
+    b = working_segment[1]
+    c = working_segment[2]
+
+    if a[1] > b[1]
+      working_segment.swap(0, 1)
+    if a[1] > c[1]
+      working_segment.swap(0, 2)
+    if b[1] > c[1]
+      working_segment.swap(1, 2)
+
     a = working_segment[0]
     b = working_segment[1]
     c = working_segment[2]
@@ -413,16 +507,13 @@ class PseudoSphere
 
     # Вычисляем приращения
     if (y3 != y1)
-      dx13 = x3 - x1
-      dx13 = dx13 / (y3 - y1)
+      dx13 = (x3 - x1) / (y3 - y1)
     
     if (y2 != y1)
-      dx12 = x2 - x1
-      dx12 = dx12 / (y2 - y1)
+      dx12 = (x2 - x1) / (y2 - y1)
     
     if (y3 != y2)
-      dx23 = (x3 - x2)
-      dx23 = dx23 / (y3 - y2)
+      dx23 = (x3 - x2) / (y3 - y2)
     
     wx1 = x1
     wx2 = wx1
@@ -430,13 +521,14 @@ class PseudoSphere
     _dx13 = dx13
 
     if (dx13 > dx12)
-      this.swap( dx13, dx12 )
-    
+      t = dx12
+      dx12 = dx13
+      dx13 = t    
     # Рисованеи верхнего треугольника
     `
-    for( i = Math.round(y1); i < y2; i++ )
+    for(var i = parseInt(y1); i < parseInt(y2); i++ )
     {
-      for ( j = Math.round(wx1); j <= wx2; j++ )
+      for (var j = parseInt(wx1); j <= parseInt(wx2); j++ )
       {
         pixels.push( [j, i] );
       }
@@ -449,19 +541,25 @@ class PseudoSphere
       wx1 = x1
       wx2 = x2
     
-    # if Math.abs(y1 - y2) < 0.01
-    #   wx1 = x1
-    #   wx2 = x2
-    #   this.swap(wx1, wx2) if wx1 > wx2
+    if Math.abs(y1 - y2) < 0.01
+      wx1 = x1
+      wx2 = x2
+
+    if wx1 > wx2
+      t = wx2
+      wx2 = wx1
+      wx1 = t 
 
     if (_dx13 < dx23)
-      this.swap( _dx13, dx23 )
+      t = _dx13
+      _dx13 = dx23
+      dx23 = t 
     
     # Растеризация нижнего треугольника
     `
-    for( i = Math.round(y2); i <= y3; i++ )
+    for(var i = parseInt(y2); i <= parseInt(y3); i++ )
     {
-      for ( j = Math.round(wx1); j <= wx2; j++ )
+      for (var j = parseInt(wx1); j <= parseInt(wx2); j++ )
       {
         pixels.push( [j, i] );
       }
@@ -521,10 +619,22 @@ class PseudoSphere
       filling_segments = this.sphere_filling_segments()
       for segment in filling_segments 
         this.flat_filling(segment, ctx)
-      #   pxls = this.modified_flat_filling(segment)
-      #   for pxl in pxls
-      #     this.setPixel(canvasData, pxl[0], pxl[1], 100, 200, 100, 255)
-      # ctx.putImageData( canvasData, 0, 0 )
+    else if @flat_with_zbuffer
+      @zbuffer = new Array(canvas.width+1)
+      `
+      for(var i = 0; i<canvas.width+1; i++) 
+        this.zbuffer[i] = new Array(canvas.height+1);
+      `
+      `
+      for( var i = 0; i < canvas.width + 1; i++ )
+        for( var j = 0; j < canvas.height + 1; j++ )
+          this.zbuffer[i][j] = -77777777777777777777.0
+      `
+      canvasData = ctx.createImageData(canvas.width, canvas.height);
+      filling_segments = this.sphere_zbuffer_segments()
+      for segment in filling_segments 
+        this.flat_filling_with_zbuffer(segment, ctx, canvasData)
+      ctx.putImageData(canvasData, 0, 0)
     else
       segments = this.sphere_segments()
       for segment in segments
@@ -544,18 +654,18 @@ $ ->
   # Иниициализация начальных значений поверхности
   u_min = 0.0
   v_min = 0.0
-  u_max = Math.PI/2
+  u_max = 2*Math.PI/2
   v_max = 2*Math.PI
   sp = new PseudoSphere( u_min, v_min, u_max, v_max )
   sp.draw()
 
   a_val = -3
-  u_val = 100
-  v_val = 10
+  u_val = 45
+  v_val = 360
   col_val = 121
   radian = 180/Math.PI
-  @angle_min = -4*90
-  @angle_max = 4*90
+  @angle_min = -90
+  @angle_max = 90
   @angle_val = 0
   @d_max = 50
   @d_min = 1
@@ -656,6 +766,9 @@ $ ->
       sp.draw()
     else if ($("input[@name='filling']:checked").val() == 'flat')
       sp.set_flat(true)
+      sp.draw()
+    else if ($("input[@name='filling']:checked").val() == 'flat_with_zbuffer')
+      sp.set_flat_with_zbuffer(true)
       sp.draw()
     else
       sp.set_flat(false)
