@@ -62,24 +62,6 @@ class Point
     return @z
 
   get_matrixes: () ->
-    # @rotate_z  = Matrix.create([
-    #                        [ @cos_c, @sin_c,  0, 0],
-    #                        [ -@sin_c, @cos_c,   0, 0],
-    #                        [ 0, 0, 1, 0],
-    #                        [ 0, 0, 0, 1]])
-
-    # @rotate_x  = Matrix.create([
-    #                      [ 1, 0, 0, 0],
-    #                      [ 0, @cos_a, @sin_a, 0],
-    #                      [ 0, -@sin_a,  @cos_a, 0],
-    #                      [ 0, 0, 0, 1] ])
-
-    # @rotate_y  = Matrix.create([
-    #                      [ @cos_b, 0, -@sin_b, 0],
-    #                      [ 0, 1, 0, 0],
-    #                      [ @sin_b, 0,  @cos_b, 0],
-    #                      [ 0, 0, 0, 1] ])
-
     @move_xy   = Matrix.create([ [1,0,0,0],
                          [0,1,0,0],
                          [0,0,1,0],
@@ -143,7 +125,7 @@ class PseudoSphere
     @y_angle = 0*Math.PI/180
     @z_angle = 0*Math.PI/180
 
-    @surface_parameter = -2
+    @surface_parameter = 1
     @dv_count = 11
     @du_count = 20
 
@@ -257,6 +239,11 @@ class PseudoSphere
     x = a * Math.sin( u ) * Math.cos( v ) 
     y = a * Math.sin( u ) * Math.sin( v ) 
     z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
+
+    # x = a * Math.sin( u ) * Math.cos( v ) 
+    # y = a * Math.sin( u ) * Math.sin( v ) 
+    # z = a * (( Math.sin( u / 2 ) ) + Math.cos( u ) )
+
     # x = a * (1 + Math.cos(v)) * Math.sin(u);
     # y = a * (1 + Math.sin(v)) * Math.cos(u);
     # z = -a * 2 * Math.tan(u - Math.PI) * Math.sin(v);
@@ -279,9 +266,6 @@ class PseudoSphere
       v = @v_min
     return points
 
-  # Вся твоя ошибка заключалась в том что ты дебил блять!
-  # Ты делаешь диференс углов, получаешь нормальный результат, но не поварачивается!
-  # А всё потому что не надо всё время заново создавать точки, а работать с имеющимися!!!
   sphere_screen_points: () ->
     points = this.sphere_3d_points()
     screen_points = []
@@ -297,9 +281,7 @@ class PseudoSphere
   sphere_filling_segments: () ->
     points = this.sphere_screen_points()
     segments = []
-    # NOTE: :::::::::::::::
-    # ПОхоже что именно out color считается плохо
-    # Кароче говоря посмотри вычисление нормали - у тебя только две точки используются вместо 4х  
+
     for v_ind in [0...@du_count-1]
       for u_ind in [0...@dv_count]
         # 1*@dv_count + 1, 2*@dv_count + 2
@@ -308,17 +290,21 @@ class PseudoSphere
         point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
         point_four = point_three + 1
         
-        poly_four = [points[point_one], points[point_two], points[point_four], points[point_three], points[point_one]]
-        segments.push( poly_four )
+        # poly_four = [points[point_one], points[point_two], points[point_four], points[point_three], points[point_one]]
+        # segments.push( poly_four )
 
+        if (points[point_one][1] != NaN && points[point_two][0] != NaN && points[point_three][1] != NaN && points[point_four][0] != NaN)
+          poly_one = [points[point_one], points[point_two], points[point_three]]
+          poly_two = [points[point_four], points[point_three], points[point_two]]
+          console.log(poly_one)
+          segments.push( poly_one )
+          segments.push( poly_two )
     return segments
   
   sphere_segments: () ->
     points = this.sphere_screen_points()
     segments = []
-    # NOTE: :::::::::::::::
-    # ПОхоже что именно out color считается плохо
-    # Кароче говоря посмотри вычисление нормали - у тебя только две точки используются вместо 4х  
+
     for v_ind in [0...@du_count-1]
       for u_ind in [0...@dv_count]
 
@@ -326,7 +312,7 @@ class PseudoSphere
         point_two = point_one + 1
         point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
         point_four = point_three + 1
- 
+
         poly_one = [points[point_one], points[point_two], points[point_three]]
         poly_two = [points[point_four], points[point_three], points[point_two]]
 
@@ -337,9 +323,7 @@ class PseudoSphere
   sphere_zbuffer_segments: () ->
     points = this.sphere_screen_points()
     segments = []
-    # NOTE: :::::::::::::::
-    # ПОхоже что именно out color считается плохо
-    # Кароче говоря посмотри вычисление нормали - у тебя только две точки используются вместо 4х  
+   
     for v_ind in [0...@du_count-1]
       for u_ind in [0...@dv_count]
         point_one = v_ind * @dv_count + v_ind + u_ind
@@ -349,21 +333,21 @@ class PseudoSphere
  
         poly_one = [points[point_one], points[point_two], points[point_three]]
         poly_two = [points[point_four], points[point_three], points[point_two]]
-        poly_three = [points[point_two], points[point_three], points[point_one] ]
-        poly_four = [ points[point_three], points[point_two], points[point_four] ]
+        # poly_three = [points[point_two], points[point_three], points[point_one] ]
+        # poly_four = [ points[point_three], points[point_two], points[point_four] ]
 
         segments.push( poly_one )
         segments.push( poly_two )
-        segments.push( poly_three )
-        segments.push( poly_four )
+        #segments.push( poly_three )
+        #segments.push( poly_four )
     return segments
 
 
   # Подсчёт координат вектора нормали для сегмента
   calculate_normale: (segment) ->
-    a = 0
-    b = 0
-    c = 0
+    a = 0.0
+    b = 0.0
+    c = 0.0
     j = 0
     for i in [0...segment.length ]
       if i == segment.length - 1
@@ -389,7 +373,7 @@ class PseudoSphere
     color_out = [undefined, undefined, undefined]
     color = ""
     if cos_s_n < 0
-      color_in[0] = Math.round( @color_in[0]*(-cos_s_n))
+      color_in[0] = Math.round(@color_in[0]*(-cos_s_n))
       color_in[1] = Math.round(@color_in[1]*(-cos_s_n))
       color_in[2] = Math.round(@color_in[2]*(-cos_s_n))
       color = "rgb(#{color_in[0]},#{color_in[1]},#{color_in[2]})"
@@ -410,8 +394,8 @@ class PseudoSphere
       ctx.moveTo(segment[0][0], segment[0][1])
       ctx.lineTo(segment[1][0], segment[1][1])
       ctx.lineTo(segment[2][0], segment[2][1])
-      ctx.lineTo(segment[3][0], segment[3][1])
-      ctx.lineTo(segment[4][0], segment[4][1])
+      # ctx.lineTo(segment[3][0], segment[3][1])
+      # ctx.lineTo(segment[4][0], segment[4][1])
       ctx.fill()
 
   flat_filling_with_zbuffer: (segment, ctx, canvasData) ->
@@ -424,12 +408,12 @@ class PseudoSphere
     color_in = [undefined, undefined, undefined]
     color_out = [undefined, undefined, undefined]
     color_arr = []
-    if cos_s_n < 0 && cos_s_n >= -1
+    if cos_s_n < 0
       color_in[0] = Math.round( @color_in[0]*(-cos_s_n))
       color_in[1] = Math.round(@color_in[1]*(-cos_s_n))
       color_in[2] = Math.round(@color_in[2]*(-cos_s_n))
       color_arr = [ color_in[0], color_in[1], color_in[2] ]
-    else if cos_s_n > 0 && cos_s_n <= 1
+    else 
       color_out[0] = Math.round(@color_out[0]*cos_s_n)
       color_out[1] = Math.round(@color_out[1]*cos_s_n)
       color_out[2] = Math.round(@color_out[2]*cos_s_n)
@@ -440,7 +424,7 @@ class PseudoSphere
       for pxl in pixels
         x = pxl[0]
         y = pxl[1]
-        if ( x > 0 && y > 0 && x < 600 && y < 600 )
+        if ( x >= 0 && y >= 0 && x < 600 && y < 600 )
           z = this.calculate_z( segment[0], a, b, c, x, y )
           if ( z > @zbuffer[x][y] )  
             @zbuffer[x][y] = z
@@ -494,25 +478,26 @@ class PseudoSphere
     b = working_segment[1]
     c = working_segment[2]
 
-    x1 = a[0]
-    y1 = a[1]
-    x2 = b[0]
-    y2 = b[1]
-    x3 = c[0]
-    y3 = c[1]
+    x1 = parseInt(a[0])
+    y1 = parseInt(a[1])
+    x2 = parseInt(b[0])
+    y2 = parseInt(b[1])
+    x3 = parseInt(c[0])
+    y3 = parseInt(c[1])
 
-    dx13 = 0
-    dx12 = 0
-    dx23 = 0
+    dx13 = 0.0
+    dx12 = 0.0
+    dx23 = 0.0
 
     # Вычисляем приращения
-    if (y3 != y1)
+    dy31 = y3 - y1
+    if (dy31 != 0)
       dx13 = (x3 - x1) / (y3 - y1)
-    
-    if (y2 != y1)
+    dy21 = y2 - y1
+    if (dy21 != 0)
       dx12 = (x2 - x1) / (y2 - y1)
-    
-    if (y3 != y2)
+    dy32 = y3 - y2
+    if (dy32 != 0)
       dx23 = (x3 - x2) / (y3 - y2)
     
     wx1 = x1
@@ -526,7 +511,7 @@ class PseudoSphere
       dx13 = t    
     # Рисованеи верхнего треугольника
     `
-    for(var i = parseInt(y1); i < parseInt(y2); i++ )
+    for(var i = parseInt(y1); i < y2; i++ )
     {
       for (var j = parseInt(wx1); j <= parseInt(wx2); j++ )
       {
@@ -557,9 +542,9 @@ class PseudoSphere
     
     # Растеризация нижнего треугольника
     `
-    for(var i = parseInt(y2); i <= parseInt(y3); i++ )
+    for( var i = parseInt(y2); i <= y3; i++ )
     {
-      for (var j = parseInt(wx1); j <= parseInt(wx2); j++ )
+      for ( var j = parseInt(wx1); j <= parseInt(wx2); j++ )
       {
         pixels.push( [j, i] );
       }
@@ -607,11 +592,11 @@ class PseudoSphere
   draw: () ->
     canvas = document.getElementById('canvas')
     ctx = canvas.getContext('2d')
+
     ctx.save()
-    # Use the identity matrix while clearing the canvas
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    # Restore the transform
+
     ctx.restore()
 
     if @flat  
@@ -631,7 +616,7 @@ class PseudoSphere
           this.zbuffer[i][j] = -77777777777777777777.0
       `
       canvasData = ctx.createImageData(canvas.width, canvas.height);
-      filling_segments = this.sphere_zbuffer_segments()
+      filling_segments = this.sphere_filling_segments()
       for segment in filling_segments 
         this.flat_filling_with_zbuffer(segment, ctx, canvasData)
       ctx.putImageData(canvasData, 0, 0)
@@ -659,7 +644,7 @@ $ ->
   sp = new PseudoSphere( u_min, v_min, u_max, v_max )
   sp.draw()
 
-  a_val = -3
+  a_val = 1
   u_val = 45
   v_val = 360
   col_val = 121
@@ -751,12 +736,12 @@ $ ->
       sp.draw()
 
   $('#a').slider
-    min: -10
+    min: 0
     max: 10
     step: @d_step
     value: a_val
     slide: (event, ui) ->
-      $('#a p').html("A: #{ui.value} &isin; [-10...10]")
+      $('#a p').html("A: #{ui.value} &isin; [0...10]")
       sp.set_surface_parameter(ui.value)
       sp.draw()
 
