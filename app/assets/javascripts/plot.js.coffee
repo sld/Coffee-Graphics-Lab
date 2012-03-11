@@ -3,19 +3,23 @@
 # You can use CoffeeScript in this file: http://jashkenas.github.com/coffee-script/
 
 class Point
-  constructor: (x, y, z, a, b, c) ->
+  constructor: (x, y, z) ->
     @x = x
     @y = y
     @z = z
 
-    @x_angle = a
-    @y_angle = b
-    @z_angle = c
-
+    this.set_default_values()
+  
+  set_default_values: ()->
     # Для Move Matrix
     @xSize = 2800
     @ySize = 1900
     @central_project = false
+
+  set_angle: (a, b, c) ->
+    @x_angle = a
+    @y_angle = b
+    @z_angle = c
 
   #--- Необходимо вынести в модуль Math ---#
   sin_A: ( a ) ->
@@ -43,14 +47,6 @@ class Point
     return c / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c, 2) )
   #---    ---#
 
-    
-  # calculate_sin_cos: () ->
-  #   @sin_a = Math.sin( @x_angle )
-  #   @cos_a = Math.cos( @x_angle )
-  #   @sin_b = Math.sin( @y_angle )
-  #   @cos_b = Math.cos( @y_angle )
-  #   @sin_c = Math.sin( @z_angle )
-  #   @cos_c = Math.cos( @z_angle )
 
   get_x: () ->
     return @x
@@ -114,7 +110,77 @@ class Point
 
     return [sx/10, sy/10]
 
-class PseudoSphere
+
+
+class Light
+  constructor: (x, y, z) ->
+    @light_vector = Vector.create([x, y, z])
+    @ka = 0.2
+    @kd = 0.5
+    @kr = 0.8
+    @n = 7
+
+  reflection_vector: (normale_vector) ->
+    return ((normale_vector.cross(@light_vector)).cross(normale_vector).x(2)).subtract(@light_vector)
+
+  ambient: (intensity) ->
+    return intensity
+
+  diffuse: (normale_vector, intensity) ->
+    # Надо учитывать, что если косинус больше Пи/2, то угол равен 0
+    alpha = Math.cos_ab( normale_vector, @light_vector )
+    if alpha >= 0 && alpha <= Math.PI/2
+      return intensity * alpha
+    else
+      return 0
+
+  reflect: (normale_vector, intensity) ->
+    # HACK::: !!!
+    reflection_vector = this.reflection_vector( normale_vector )
+    alpha = reflection_vector.e(3) / Math.vector_length( reflection_vector )
+    if alpha < 0
+      return 0
+    else
+      return Math.pow( alpha, @n ) * intensity
+
+  # i - intensity
+  summary_intensity: ( ambient_i, diffuse_i, reflection_i, surf_i, normale_vector ) ->
+    a_i = Math.min(ambient_i, surf_i)
+    d_i = Math.min(diffuse_i, surf_i)
+    return @ka * this.ambient( a_i ) + @kd * this.diffuse(normale_vector, d_i) + @kr * this.reflect(normale_vector, reflection_i) 
+
+  set_x_coord: (val) ->
+    @light_vector.setElements( [val, @light_vector.e(2), @light_vector.e(3)] )
+
+  set_y_coord: (val) ->
+    @light_vector.setElements( [@light_vector.e(1), val, @light_vector.e(3)] )
+
+  set_z_coord: (val) ->
+    @light_vector.setElements( [@light_vector.e(1), @light_vector.e(2), val] )
+
+  set_ka: (val) ->
+    @ka = val
+
+  set_kd: (val) ->
+    @kd = val
+
+  set_kr: (val) ->
+    @kr = val
+
+  set_n: (val) ->
+    @n = val
+
+
+# Math - принимают на вход Vector
+Math.vector_length = (a) ->
+  return Math.sqrt( Math.pow(a.e(1), 2) + Math.pow(a.e(2), 2) + Math.pow(a.e(3), 2) )
+
+Math.cos_ab = (a, b) ->
+  return ( a.e(1)*b.e(1) + a.e(2)*b.e(2) + a.e(3)*b.e(3) ) / (Math.vector_length(a) * Math.vector_length(b))
+
+
+
+class Surface
   constructor: (u_min, v_min, u_max, v_max) ->
     @u_max = u_max
     @v_max = v_max
@@ -129,7 +195,8 @@ class PseudoSphere
     @dv_count = 11
     @du_count = 20
 
-    @to_newel = new Array()
+    # Хэш, где хранится отображение экранных координат в пространственные
+    @screen_to_object_coordinates_hash = new Array()
     @flat = false
 
     @color_out = [123, 200, 20]
@@ -144,10 +211,10 @@ class PseudoSphere
     # Результирующая матрица для поворота
     @result_matr = Matrix.I(4)
 
-  # set_camera: (xang, yang, zang) ->
-  #   @z_angle = zang
-  #   @y_angle = yang
-  #   @x_angle = xang
+    # Координаты источника света
+    @light = new Light(100, 100, 100)
+
+
   
   # Считаем матрицу поворота. Стоит вынести за пределы текущего класса
   calc_rotate: (axis) ->
@@ -184,7 +251,6 @@ class PseudoSphere
 
   set_camera_x_angle: ( val ) ->
     radian = Math.PI / 180
-    #console.log([@result_matr])
     @x_angle = val*radian - @prev_x_angle 
     @prev_x_angle = val*radian
     this.rotate_result_matr('x')
@@ -234,22 +300,28 @@ class PseudoSphere
     @color_in[1] = rgb[1]
     @color_in[2] = rgb[2]
 
+  set_light_coords: (x, y, z) ->
+    @light.set_x_coord(x)
+    @light.set_y_coord(y)
+    @light.set_z_coord(z)
+
+  set_light_koeff: (ka, kd, kr) ->
+    @light.set_ka(ka)
+    @light.set_kd(kd)
+    @light.set_kr(kr)
+
+  # NOTE: Ещё раз говорю посмотри как получить доступ к объекту наподобие attr_accessor
+  set_light_refl_n: ( val ) ->
+    @light.set_n( val )
+
   point_equation: ( u, v ) ->
     a = @surface_parameter * 1000
     x = a * Math.sin( u ) * Math.cos( v ) 
     y = a * Math.sin( u ) * Math.sin( v ) 
     z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
-
-    # x = a * Math.sin( u ) * Math.cos( v ) 
-    # y = a * Math.sin( u ) * Math.sin( v ) 
-    # z = a * (( Math.sin( u / 2 ) ) + Math.cos( u ) )
-
-    # x = a * (1 + Math.cos(v)) * Math.sin(u);
-    # y = a * (1 + Math.sin(v)) * Math.cos(u);
-    # z = -a * 2 * Math.tan(u - Math.PI) * Math.sin(v);
     return [x, y, z]
 
-  sphere_3d_points: () ->
+  surface_3d_points: () ->
     points = []
     @du = ((@u_max - @u_min) / (@du_count))
     @dv = ((@v_max - @v_min) / (@dv_count)) 
@@ -266,43 +338,21 @@ class PseudoSphere
       v = @v_min
     return points
 
-  sphere_screen_points: () ->
-    points = this.sphere_3d_points()
+  surface_screen_points: () ->
+    points = this.surface_3d_points()
     screen_points = []
     for point in points
-      working_point = new Point( point[0], point[1], point[2], @x_angle, @y_angle, @z_angle )
+      working_point = new Point( point[0], point[1], point[2])
+      working_point.set_angle( @x_angle, @y_angle, @z_angle )
       working_point.multiplicate(@result_matr)
       to_p = working_point.get_screen_projection()
-      @to_newel[to_p] = [ working_point.get_x(), working_point.get_y(), working_point.get_z() ]
+      @screen_to_object_coordinates_hash[to_p] = [ working_point.get_x(), working_point.get_y(), working_point.get_z() ]
       screen_points.push( to_p )
 
     return screen_points
   
-  sphere_filling_segments: () ->
-    points = this.sphere_screen_points()
-    segments = []
-
-    for v_ind in [0...@du_count-1]
-      for u_ind in [0...@dv_count]
-        # 1*@dv_count + 1, 2*@dv_count + 2
-        point_one = v_ind * @dv_count + v_ind + u_ind
-        point_two = point_one + 1
-        point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
-        point_four = point_three + 1
-        
-        # poly_four = [points[point_one], points[point_two], points[point_four], points[point_three], points[point_one]]
-        # segments.push( poly_four )
-
-        if (points[point_one][1] != NaN && points[point_two][0] != NaN && points[point_three][1] != NaN && points[point_four][0] != NaN)
-          poly_one = [points[point_one], points[point_two], points[point_three]]
-          poly_two = [points[point_four], points[point_three], points[point_two]]
-          console.log(poly_one)
-          segments.push( poly_one )
-          segments.push( poly_two )
-    return segments
-  
-  sphere_segments: () ->
-    points = this.sphere_screen_points()
+  surface_segments: () ->
+    points = this.surface_screen_points()
     segments = []
 
     for v_ind in [0...@du_count-1]
@@ -319,29 +369,6 @@ class PseudoSphere
         segments.push( poly_one )
         segments.push( poly_two )
     return segments
-
-  sphere_zbuffer_segments: () ->
-    points = this.sphere_screen_points()
-    segments = []
-   
-    for v_ind in [0...@du_count-1]
-      for u_ind in [0...@dv_count]
-        point_one = v_ind * @dv_count + v_ind + u_ind
-        point_two = point_one + 1
-        point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
-        point_four = point_three + 1
- 
-        poly_one = [points[point_one], points[point_two], points[point_three]]
-        poly_two = [points[point_four], points[point_three], points[point_two]]
-        # poly_three = [points[point_two], points[point_three], points[point_one] ]
-        # poly_four = [ points[point_three], points[point_two], points[point_four] ]
-
-        segments.push( poly_one )
-        segments.push( poly_two )
-        #segments.push( poly_three )
-        #segments.push( poly_four )
-    return segments
-
 
   # Подсчёт координат вектора нормали для сегмента
   calculate_normale: (segment) ->
@@ -354,8 +381,8 @@ class PseudoSphere
         j = 0
       else
         j = i + 1
-      first_surf_point = @to_newel[ segment[i] ]
-      second_surf_point = @to_newel[ segment[j] ]
+      first_surf_point = @screen_to_object_coordinates_hash[ segment[i] ]
+      second_surf_point = @screen_to_object_coordinates_hash[ segment[j] ]
 
       a += (first_surf_point[1] - second_surf_point[1]) * (first_surf_point[2] + second_surf_point[2])
       b += (first_surf_point[2] - second_surf_point[2]) * (first_surf_point[0] + second_surf_point[0])
@@ -385,18 +412,13 @@ class PseudoSphere
 
     if color != 0
       ctx.fillStyle = color; 
-      # ctx.beginPath()
-      # ctx.moveTo(segment[0][0], segment[0][1])
-      # ctx.lineTo(segment[1][0], segment[1][1])
-      # ctx.lineTo(segment[2][0], segment[2][1])
-      # ctx.fill()
       ctx.beginPath()
       ctx.moveTo(segment[0][0], segment[0][1])
       ctx.lineTo(segment[1][0], segment[1][1])
       ctx.lineTo(segment[2][0], segment[2][1])
-      # ctx.lineTo(segment[3][0], segment[3][1])
-      # ctx.lineTo(segment[4][0], segment[4][1])
       ctx.fill()
+
+
 
   flat_filling_with_zbuffer: (segment, ctx, canvasData) ->
     abc = this.calculate_normale( segment )
@@ -408,16 +430,16 @@ class PseudoSphere
     color_in = [undefined, undefined, undefined]
     color_out = [undefined, undefined, undefined]
     color_arr = []
+
+    normale = Vector.create( abc )
     if cos_s_n < 0
-      color_in[0] = Math.round( @color_in[0]*(-cos_s_n))
-      color_in[1] = Math.round(@color_in[1]*(-cos_s_n))
-      color_in[2] = Math.round(@color_in[2]*(-cos_s_n))
-      color_arr = [ color_in[0], color_in[1], color_in[2] ]
+      color_arr[0] = parseInt(@light.summary_intensity( 210, 5, 100, @color_in[0], normale ))
+      color_arr[1] = parseInt(@light.summary_intensity( 210, 5, 100, @color_in[1], normale ))
+      color_arr[2] = parseInt(@light.summary_intensity( 210, 5, 100, @color_in[2], normale ))
     else 
-      color_out[0] = Math.round(@color_out[0]*cos_s_n)
-      color_out[1] = Math.round(@color_out[1]*cos_s_n)
-      color_out[2] = Math.round(@color_out[2]*cos_s_n)
-      color_arr = [ color_out[0], color_out[1], color_out[2] ]
+      color_arr[0] = parseInt(@light.summary_intensity( 210, 5, 100, @color_out[0], normale ))
+      color_arr[1] = parseInt(@light.summary_intensity( 210, 5, 100, @color_out[1], normale ))
+      color_arr[2] = parseInt(@light.summary_intensity( 210, 5, 100, @color_out[2], normale ))
 
     if color_arr != []
       pixels = this.rasterization(segment)
@@ -431,7 +453,7 @@ class PseudoSphere
             this.setPixel(canvasData, x, y, color_arr[0], color_arr[1], color_arr[2], 255)
   
   calculate_z: ( point, a, b, c, x, y ) ->
-    surf_point = @to_newel[ point ]
+    surf_point = @screen_to_object_coordinates_hash[ point ]
     d = -(a*surf_point[0] + b*surf_point[1] + c*surf_point[2])
     ans = -(a * x + b * y + d  ) / c
     return ans
@@ -455,7 +477,7 @@ class PseudoSphere
     c = working_segment[2]
     pixels = []
 
-    # Сортируем вершины по y
+    # Сортируем вершины по y( 2 раза )
     if a[1] > b[1]
       working_segment.swap(0, 1)
     if a[1] > c[1]
@@ -553,20 +575,10 @@ class PseudoSphere
     }
     ` 
     return pixels
+    
+  #NOTE:::       Ставим свет!!!
 
   draw_axises: ( ctx ) ->
-    # points = this.sphere_screen_points()
-    # # for i in [0...points.length - @du_count - 1]
-    # jc.text(" point_one ", @debug_points[0][0], @debug_points[0][1])
-    # jc.text(" point_two ",  @debug_points[1][0], @debug_points[1][1])
-    # jc.text(" point_three ",  @debug_points[2][0], @debug_points[2][1])
-    # jc.text(" point_four ",  @debug_points[3][0], @debug_points[3][1])
-    #jc.text(" @dv_count*2 + 2",  @debug_points[4][0], @debug_points[4][1])
-    #jc.text(" i + 1 ",  @debug_points[5][0], @debug_points[5][1])
-    #   jc.text(" i + @du_count ", points[i + @du_count][0], points[i+@du_count][1])
-    #   #jc.text(" i + @dv_count + 1 ", points[i + @dv_count + 1][0], points[i + @dv_count + 1][1])
-    #   poly_one = [points[i], points[i + @dv_count + 1], points[ i + @dv_count] ]
-    #   poly_two = [points[i + @dv_count], points[i], points[i + 1]]
     ctx.beginPath()
     ctx.moveTo(0,0)
     ctx.lineTo(100,0)
@@ -599,10 +611,10 @@ class PseudoSphere
 
     ctx.restore()
 
+    segments = this.surface_segments()
     if @flat  
       canvasData = ctx.createImageData(canvas.width, canvas.height);
-      filling_segments = this.sphere_filling_segments()
-      for segment in filling_segments 
+      for segment in segments 
         this.flat_filling(segment, ctx)
     else if @flat_with_zbuffer
       @zbuffer = new Array(canvas.width+1)
@@ -616,12 +628,10 @@ class PseudoSphere
           this.zbuffer[i][j] = -77777777777777777777.0
       `
       canvasData = ctx.createImageData(canvas.width, canvas.height);
-      filling_segments = this.sphere_filling_segments()
-      for segment in filling_segments 
+      for segment in segments 
         this.flat_filling_with_zbuffer(segment, ctx, canvasData)
       ctx.putImageData(canvasData, 0, 0)
     else
-      segments = this.sphere_segments()
       for segment in segments
         ctx.beginPath()
         ctx.moveTo(segment[0][0], segment[0][1])
@@ -641,7 +651,7 @@ $ ->
   v_min = 0.0
   u_max = 2*Math.PI/2
   v_max = 2*Math.PI
-  sp = new PseudoSphere( u_min, v_min, u_max, v_max )
+  sp = new Surface( u_min, v_min, u_max, v_max )
   sp.draw()
 
   a_val = 1
@@ -664,6 +674,8 @@ $ ->
   $('.in_color').draggable()
   $('.out_color').draggable()
   $('.surface_parameters').draggable()
+  $('.light_coords').draggable()
+  $('.light_properties').draggable()
 
   # Слайдеры для управления вращением объекта
   $('#angle_x').slider
@@ -835,4 +847,82 @@ $ ->
       color = "rgb(" + $('.out_color #r').slider("value") + "," + $('.out_color #g').slider("value") + "," +  ui.value + ")"
       $('#out_color_show').css('background-color', color)
       sp.draw()
+
+  @light_min = -300
+  @light_max = 300
+  @light_coord_val = 100
+  # NOTE: Посмотри как получить доступ к объекту в классе
+  $('.light_coords #x').slider
+    min: @light_min
+    max: @light_max
+    step: 1
+    value: @light_coord_val
+    slide: (event, ui) ->
+      $('.light_coords #x p').html("X: #{ui.value} &isin; [-300...300]")
+      sp.set_light_coords(ui.value,  $('.light_coords #y').slider("value"), $('.light_coords #z').slider("value") )
+      sp.draw()
+
+  $('.light_coords #y').slider
+    min: @light_min
+    max: @light_max
+    step: 1
+    value: @light_coord_val
+    slide: (event, ui) ->
+      $('.light_coords #y p').html("Y: #{ui.value} &isin; [-300...300]")
+      sp.set_light_coords($('.light_coords #x').slider("value"), ui.value, $('.light_coords #z').slider("value") )
+      sp.draw()
+
+  $('.light_coords #z').slider
+    min: @light_min
+    max: @light_max
+    step: 1
+    value: @light_coord_val
+    slide: (event, ui) ->
+      $('.light_coords #z p').html("Z: #{ui.value} &isin; [-300...300]")
+      sp.set_light_coords($('.light_coords #x').slider("value"), $('.light_coords #y').slider("value"), ui.value )
+      sp.draw()
+
+  @light_prop_min = 0
+  @light_prop_max = 1
+  @light_prop_val = 0.3
+  $('.light_properties #ambient').slider
+    min: @light_prop_min
+    max: @light_prop_max
+    step: 0.1
+    value: @light_prop_val
+    slide: (event, ui) ->
+      $('.light_properties #ambient p').html("ka: #{ui.value} &isin; [0...1]")
+      sp.set_light_koeff(ui.value,  $('.light_properties #diffuse').slider("value"), $('.light_properties #reflection').slider("value") )
+      sp.draw()
+    
+  $('.light_properties #diffuse').slider
+    min: @light_prop_min
+    max: @light_prop_max
+    step: 0.1
+    value: @light_prop_val
+    slide: (event, ui) ->
+      $('.light_properties #diffuse p').html("kd: #{ui.value} &isin; [0...1]")
+      sp.set_light_koeff($('.light_properties #ambient').slider("value"), ui.value, $('.light_properties #reflection').slider("value") )
+      sp.draw()
+
+  $('.light_properties #reflection').slider
+    min: @light_prop_min
+    max: @light_prop_max
+    step: 0.1
+    value: @light_prop_val
+    slide: (event, ui) ->
+      $('.light_properties #reflection p').html("kr: #{ui.value} &isin; [0...1]")
+      sp.set_light_koeff($('.light_properties #ambient').slider("value"), $('.light_properties #diffuse').slider("value"), ui.value )
+      sp.draw()
+
+  $('.light_properties #n').slider
+    min: 0
+    max: 20
+    step: 1
+    value: 5
+    slide: (event, ui) ->
+      $('.light_properties #n p').html("n: #{ui.value} &isin; [0...1]")
+      sp.set_light_refl_n( ui.value )
+      sp.draw()
+
 

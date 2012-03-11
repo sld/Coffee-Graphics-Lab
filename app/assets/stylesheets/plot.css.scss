@@ -58,8 +58,17 @@ p.label{
 
 #u, #v, #step_u, #step_v, #a, .filling, #r, #g, #b{
   margin: $margin*2;
-
 }
+
+.light_coords #x, #y, #z{
+  margin: $margin*2;
+}
+
+.light_properties #ambient, #diffuse, #reflection, #n{
+  margin: $margin*2;
+}
+
+
 body,html {
   margin:0;
   padding:0;
