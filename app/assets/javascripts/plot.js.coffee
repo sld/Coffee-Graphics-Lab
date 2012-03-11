@@ -202,6 +202,9 @@ class Surface
     @color_out = [123, 200, 20]
     @color_in = [255,255,22]
 
+    @ambient_col = [123, 200, 20]
+    @diff_col = [255,255,22]
+
     @prev_x_angle =  @x_angle
     @prev_y_angle =  @y_angle
     @prev_z_angle =  @z_angle
@@ -313,6 +316,15 @@ class Surface
   # NOTE: Ещё раз говорю посмотри как получить доступ к объекту наподобие attr_accessor
   set_light_refl_n: ( val ) ->
     @light.set_n( val )
+
+  set_ambient_col: (col_arr) ->
+    @ambient_col = col_arr
+
+  set_diffuse_color: (col_arr) ->
+    @diff_col = col_arr
+
+  set_point_color: (col_arr) ->
+    @ambient_col = col_arr
 
   point_equation: ( u, v ) ->
     a = @surface_parameter * 1000
@@ -433,13 +445,13 @@ class Surface
 
     normale = Vector.create( abc )
     if cos_s_n < 0
-      color_arr[0] = parseInt(@light.summary_intensity( 210, 5, 100, @color_in[0], normale ))
-      color_arr[1] = parseInt(@light.summary_intensity( 210, 5, 100, @color_in[1], normale ))
-      color_arr[2] = parseInt(@light.summary_intensity( 210, 5, 100, @color_in[2], normale ))
+      color_arr[0] = parseInt(@light.summary_intensity( @ambient_col[0], @diff_col[0], @diff_col[0], @color_in[0], normale ))
+      color_arr[1] = parseInt(@light.summary_intensity( @ambient_col[1], @diff_col[1], @diff_col[1], @color_in[1], normale ))
+      color_arr[2] = parseInt(@light.summary_intensity( @ambient_col[2], @diff_col[2], @diff_col[2], @color_in[2], normale ))
     else 
-      color_arr[0] = parseInt(@light.summary_intensity( 210, 5, 100, @color_out[0], normale ))
-      color_arr[1] = parseInt(@light.summary_intensity( 210, 5, 100, @color_out[1], normale ))
-      color_arr[2] = parseInt(@light.summary_intensity( 210, 5, 100, @color_out[2], normale ))
+      color_arr[0] = parseInt(@light.summary_intensity( @ambient_col[0], @diff_col[0], @diff_col[0], @color_out[0], normale ))
+      color_arr[1] = parseInt(@light.summary_intensity( @ambient_col[1], @diff_col[1], @diff_col[1], @color_out[1], normale ))
+      color_arr[2] = parseInt(@light.summary_intensity( @ambient_col[2], @diff_col[2], @diff_col[2], @color_out[2], normale ))
 
     if color_arr != []
       pixels = this.rasterization(segment)
@@ -676,6 +688,8 @@ $ ->
   $('.surface_parameters').draggable()
   $('.light_coords').draggable()
   $('.light_properties').draggable()
+  $('.diffuse_color').draggable()
+  $('.point_color').draggable()
 
   # Слайдеры для управления вращением объекта
   $('#angle_x').slider
@@ -926,3 +940,77 @@ $ ->
       sp.draw()
 
 
+#---------------------------------
+# Слайдеры для управления цветом источника света
+ # Слайдеры для управления цветом
+  $('.diffuse_color #r').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.in_color #r p').html("r: #{ui.value}  &isin; [0...255]")
+      sp.set_diffuse_color([ui.value,  $('.diffuse_color #g').slider("value"), $('.diffuse_color #b').slider("value") ])
+      color = "rgb(" + ui.value + "," + $('.diffuse_color #g').slider("value") + "," + $('.diffuse_color #b').slider("value") + ")"
+      $('#diffuse_color_show').css('background-color', color)
+      sp.draw()
+
+  $('.diffuse_color #g').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.diffuse_color #g p').html("g: #{ui.value} &isin; [0...255]")
+      sp.set_diffuse_color([$('.diffuse_color #r').slider("value"),  ui.value, $('.diffuse_color #b').slider("value") ])
+      color = "rgb(" + $('.diffuse_color #r').slider("value") + "," + ui.value + "," + $('.diffuse_color #b').slider("value") + ")"
+      $('#diffuse_color_show').css('background-color', color)
+      sp.draw()
+
+  $('.diffuse_color #b').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.diffuse_color #b p').html("b: #{ui.value} &isin; [0...255]")
+      sp.set_diffuse_color([$('.diffuse_color #r').slider("value"),  $('.diffuse_color #g').slider("value"), ui.value ])
+      color = "rgb(" + $('.diffuse_color #r').slider("value") + "," + $('.diffuse_color #g').slider("value") + "," + ui.value + ")"
+      $('#diffuse_color_show').css('background-color', color)
+      sp.draw()
+
+  $('.point_color #r').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.point_color #r p').html("r: #{ui.value} &isin; [0...255]")
+      sp.set_point_color([ui.value,  $('.point_color #g').slider("value"), $('.point_color #b').slider("value") ])
+      color = "rgb(" + ui.value + "," + $('.point_color #g').slider("value") + "," + $('.point_color #b').slider("value") + ")"
+      $('#point_color_show').css('background-color', color)
+      sp.draw()
+
+  $('.point_color #g').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.point_color #g p').html("g: #{ui.value} &isin; [0...255]")
+      sp.set_point_color([$('.point_color #r').slider("value"),  ui.value, $('.point_color #b').slider("value") ])
+      color = "rgb(" + $('.point_color #r').slider("value") + "," + ui.value + "," + $('.point_color #b').slider("value") + ")"
+      $('#point_color_show').css('background-color', color)
+      sp.draw()
+
+  $('.point_color #b').slider
+    min: @min_col
+    max: @max_col
+    step: 1
+    value: col_val
+    slide: (event, ui) ->
+      $('.point_color #b p').html("b: #{ui.value} &isin; [0...255]")
+      sp.set_point_color([$('.point_color #r').slider("value"),  $('.point_color #g').slider("value"), ui.value ])
+      color = "rgb(" + $('.point_color #r').slider("value") + "," + $('.point_color #g').slider("value") + "," +  ui.value + ")"
+      $('#point_color_show').css('background-color', color)
+      sp.draw()

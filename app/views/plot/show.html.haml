@@ -80,24 +80,44 @@
         #b
           %p b: #{color_out[2]} &isin; [0...255]
         #out_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(123, 200, 20); layer-background-color:#003366; visibility: visible" }
-    .light_coords
-      - light_coord = 100
-      %h3 Координаты источника света
-      #x
-        %p X: #{light_coord}
-      #y
-        %p Y: #{light_coord}
-      #z
-        %p Z: #{light_coord}
-    .light_properties
-      %h3 Свойства источника света
-      #ambient
-        %p Рассеивающая( ka )
-      #diffuse
-        %p Диффузная( kb )
-      #reflection
-        %p Зеркальная( kc )
-      #n
-        %p Степень
+    .light
+      .light_coords
+        - light_coord = 100
+        %h3 Координаты источника света
+        #x
+          %p X: #{light_coord}
+        #y
+          %p Y: #{light_coord}
+        #z
+          %p Z: #{light_coord}
+      .light_properties
+        %h3 Свойства источника света
+        #ambient
+          %p Рассеивающая( ka )
+        #diffuse
+          %p Диффузная( kb )
+        #reflection
+          %p Зеркальная( kc )
+        #n
+          %p Степень
+      .diffuse_color
+        %h3 Цвет источника света(рассеянный)
+        #r
+          %p r: #{color_in[0]} &isin; [0...255]
+        #g
+          %p g: #{color_in[1]} &isin; [0...255]
+        #b
+          %p b: #{color_in[2]} &isin; [0...255]
+        #diffuse_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(255,255,22); layer-background-color:#003366; visibility: visible" }
+
+      .point_color
+        %h3 Цвет источника света(точечный)
+        #r
+          %p r: #{color_out[0]} &isin; [0...255]
+        #g
+          %p g: #{color_out[1]} &isin; [0...255]
+        #b
+          %p b: #{color_out[2]} &isin; [0...255]
+        #point_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(123, 200, 20); layer-background-color:#003366; visibility: visible" }
 
 
