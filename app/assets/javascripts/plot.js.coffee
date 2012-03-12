@@ -202,8 +202,8 @@ class Surface
     @color_out = [123, 200, 20]
     @color_in = [255,255,22]
 
-    @ambient_col = [123, 200, 20]
-    @diff_col = [255,255,22]
+    @ambient_col = [255, 255, 255]
+    @diff_col = [255, 255, 255]
 
     @prev_x_angle =  @x_angle
     @prev_y_angle =  @y_angle
@@ -942,7 +942,7 @@ $ ->
 
 #---------------------------------
 # Слайдеры для управления цветом источника света
- # Слайдеры для управления цветом
+  col_val = 255
   $('.diffuse_color #r').slider
     min: @min_col
     max: @max_col

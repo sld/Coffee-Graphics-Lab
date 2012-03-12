@@ -22,102 +22,120 @@
 - color_in = [255,255,22]
 
 
-#wrap
-  #main
-    %h2.alt Лабораторная работа по ИГС 1
 
-    %canvas{ :id => 'canvas', :width => 600, :height => 600}
-      Вот это ДА!
-  #sidebar
-    .surface_parameters
-      %h3 Параметры поверхности
-      %span
-        #u
-          %p u: #{u_val} &isin; [0...200]
-        #v
-          %p v: #{v_val} &isin; [0...200]
-        #a
-          %p a:  #{a_val} &isin; [-10...10]
-      %h3 Параметры разбиения на сегменты
-      %span
-        #step_u
-          %p du: #{d_val} &isin; [0...50]
-        #step_v
-          %p dv: #{d_val} &isin; [0...50]
+.container-fluid
+  %h2.alt Лабораторная работа по ИГС 1
 
-    .filling
-      %h3 --
-      %input{:type => 'radio', :id => 'frame', :name => 'filling', :value => 'frame', :checked => true} Каркас
-      %input{:type => 'radio', :id => 'flat', :name => 'filling', :value => 'flat'} Flat - закраска
-      %input{:type => 'radio', :id => 'flat', :name => 'filling', :value => 'flat_with_zbuffer'} Flat - закраска с УНЛИП
-  #sidebar
-    .angle_sliders
-      %h3 Поворот поверхности вокруг осей координат
-      #angle_x
-        %p X: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
-      #angle_y
-        %p Y: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
-      #angle_z
-        %p Z: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
-  #footer
-    .color_sliders
-      .in_color
-        %h3 Внутренний цвет
-        #r
-          %p r: #{color_in[0]} &isin; [0...255]
-        #g
-          %p g: #{color_in[1]} &isin; [0...255]
-        #b
-          %p b: #{color_in[2]} &isin; [0...255]
-        #in_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(255,255,22); layer-background-color:#003366; visibility: visible" }
+  %canvas{ :id => 'canvas', :width => 600, :height => 600}
+    Вот это ДА!
 
-      .out_color
-        %h3 Внешний цвет
-        #r
-          %p r: #{color_out[0]} &isin; [0...255]
-        #g
-          %p g: #{color_out[1]} &isin; [0...255]
-        #b
-          %p b: #{color_out[2]} &isin; [0...255]
-        #out_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(123, 200, 20); layer-background-color:#003366; visibility: visible" }
-    .light
-      .light_coords
-        - light_coord = 100
-        %h3 Координаты источника света
-        #x
-          %p X: #{light_coord}
-        #y
-          %p Y: #{light_coord}
-        #z
-          %p Z: #{light_coord}
-      .light_properties
-        %h3 Свойства источника света
-        #ambient
-          %p Рассеивающая( ka )
-        #diffuse
-          %p Диффузная( kb )
-        #reflection
-          %p Зеркальная( kc )
-        #n
-          %p Степень
-      .diffuse_color
-        %h3 Цвет источника света(рассеянный)
-        #r
-          %p r: #{color_in[0]} &isin; [0...255]
-        #g
-          %p g: #{color_in[1]} &isin; [0...255]
-        #b
-          %p b: #{color_in[2]} &isin; [0...255]
-        #diffuse_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(255,255,22); layer-background-color:#003366; visibility: visible" }
+  .row-fluid
+    .span9
+      .row-fluid
+        .span4
+          .light_coords
+            - light_coord = 100
+            %h3 Координаты источника света
+            #x
+              %p X: #{light_coord}
+            #y
+              %p Y: #{light_coord}
+            #z
+              %p Z: #{light_coord}
+        .span4
+          .light_properties
+            %h3 Свойства источника света
+            #ambient
+              %p Рассеивающая( ka )
+            #diffuse
+              %p Диффузная( kb )
+            #reflection
+              %p Зеркальная( kc )
+            #n
+              %p Степень
+        .span4
+          .diffuse_color
+            - light_color = 255
+            %h3 Цвет источника света(рассеянный)
+            #r
+              %p r: #{light_color} &isin; [0...255]
+            #g
+              %p g: #{light_color} &isin; [0...255]
+            #b
+              %p b: #{light_color} &isin; [0...255]
+            #diffuse_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(255,255,22); layer-background-color:#003366; visibility: visible" }
+      / /row
+      .row-fluid
+        .span4
+          .point_color
+            %h3 Цвет источника света(точечный)
+            #r
+              %p r: #{light_color} &isin; [0...255]
+            #g
+              %p g: #{light_color} &isin; [0...255]
+            #b
+              %p b: #{light_color} &isin; [0...255]
+            #point_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(123, 200, 20); layer-background-color:#003366; visibility: visible" }
+          / /span
+        .span4
+          .in_color
+            %h3 Внутренний цвет
+            #r
+              %p r: #{color_in[0]} &isin; [0...255]
+            #g
+              %p g: #{color_in[1]} &isin; [0...255]
+            #b
+              %p b: #{color_in[2]} &isin; [0...255]
+            #in_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(255,255,22); layer-background-color:#003366; visibility: visible" }
+        / /span
+        .span4
+          .out_color
+            %h3 Внешний цвет
+            #r
+              %p r: #{color_out[0]} &isin; [0...255]
+            #g
+              %p g: #{color_out[1]} &isin; [0...255]
+            #b
+              %p b: #{color_out[2]} &isin; [0...255]
+            #out_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(123, 200, 20); layer-background-color:#003366; visibility: visible" }
+        / /span
+      / /row
+    / /span
 
-      .point_color
-        %h3 Цвет источника света(точечный)
-        #r
-          %p r: #{color_out[0]} &isin; [0...255]
-        #g
-          %p g: #{color_out[1]} &isin; [0...255]
-        #b
-          %p b: #{color_out[2]} &isin; [0...255]
-        #point_color_show{ :style => "z-index: 1; left: 5px; top: 50px; width: 53px; height: 37px; background-color:rgb(123, 200, 20); layer-background-color:#003366; visibility: visible" }
-
-
+    .span2.right
+      .span4
+        .surface_parameters
+          %h3 Параметры поверхности
+          %span
+            #u
+              %p u: #{u_val} &isin; [0...200]
+            #v
+              %p v: #{v_val} &isin; [0...200]
+            #a
+              %p a:  #{a_val} &isin; [-10...10]
+          %h3 Параметры разбиения на сегменты
+          %span
+            #step_u
+              %p du: #{d_val} &isin; [0...50]
+            #step_v
+              %p dv: #{d_val} &isin; [0...50]
+      .span4
+        .filling
+          %h3 --
+          %input{:type => 'radio', :id => 'frame', :name => 'filling', :value => 'frame', :checked => true} Каркас
+          %input{:type => 'radio', :id => 'flat', :name => 'filling', :value => 'flat'} Flat - закраска
+          %input{:type => 'radio', :id => 'flat', :name => 'filling', :value => 'flat_with_zbuffer'} Flat - закраска с УНЛИП
+      .span4
+        .angle_sliders
+          %h3 Поворот поверхности вокруг осей координат
+          #angle_x
+            %p X: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
+          #angle_y
+            %p Y: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
+          #angle_z
+            %p Z: #{angle_val} &isin; [#{angle_min}...#{angle_max}]
+  / /row
+  %hr
+    %footer
+      %p © Company 2012
+/ /.fluid-container

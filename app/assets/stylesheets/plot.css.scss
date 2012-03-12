@@ -8,6 +8,17 @@ $height: 250px;
 $main_width: 1000px;
 $main_height:  1000px;
 
+.container-fluid > .sidebar {
+    position: absolute;
+    right: 20px;
+    top: 0;
+    width: 220px;
+}
+
+.container-fluid > .content {
+    margin-right: 240px;
+}
+
 .point_sliders {
   padding: $margin/2;
   margin:  $margin/2;
@@ -18,25 +29,15 @@ $main_height:  1000px;
 }
 
 .angle_sliders{
-  width: $width;
-  height: $height;
   padding: $margin/2;
   margin:  $margin/2;
 }
 
 .color_sliders{
-  margin-top: 370px;
 }
 
 .in_color{
   padding: 10px;
-}
-
-.out_color{
-  padding: 10px;
-  position: relative; 
-  left: 332px; 
-  top: -277px;
 }
 
 
@@ -46,11 +47,6 @@ p.label{
 
 .showgrid { background:url('/assets/grid.png'); }
 
-.angle_sliders span{
-  height: 120px;
-  float: left;
-  margin: 15px;
-}
 
 #angle_x, #angle_y, #angle_z {
   margin: $margin*2;
@@ -68,33 +64,7 @@ p.label{
   margin: $margin*2;
 }
 
-
-body,html {
-  margin:0;
-  padding:0;
+.span2.right{
+  top: -600px;
+  position: relative;
 }
-body {
-  min-width: $main_width;
-}
-#wrap {
-  margin:0 auto;
-  width: $main_width;
-}
-
-#sidebar {
-  float:right;
-  width: $main_width/3;
-}
-
-#footer {
-  width: $width;
-  height: $height;
-  padding: $margin/2;
-  margin:  $margin/2;
-}
-
-#main {
-  float:left;
-  width: $main_width/1.5;
-}
-
