@@ -2,183 +2,9 @@
 # All this logic will automatically be available in application.js.
 # You can use CoffeeScript in this file: http://jashkenas.github.com/coffee-script/
 
-class Point
-  constructor: (x, y, z) ->
-    @x = x
-    @y = y
-    @z = z
-
-    this.set_default_values()
-  
-  set_default_values: ()->
-    # Для Move Matrix
-    @xSize = 2800
-    @ySize = 1900
-    @central_project = false
-
-  set_angle: (a, b, c) ->
-    @x_angle = a
-    @y_angle = b
-    @z_angle = c
-
-  #--- Необходимо вынести в модуль Math ---#
-  sin_A: ( a ) ->
-    return Math.sin( a )
-    if (a == 0 && b == 0)
-      return 0
-    return a / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) )
-
-  sin_B: ( c ) ->
-    return Math.sin( c )
-    if (a==0 && b==0 && c==0)
-      return 0
-    return Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2) ) / Math.sqrt( Math.pow(b, 2) + Math.pow(c, 2) + Math.pow(a, 2) )
-
-  cos_A: ( a ) ->
-    return Math.cos( a )
-    if (a==0 && b==0)
-      return 1
-    return b / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) )
-
-  cos_B: ( c ) ->
-    return Math.cos(c)
-    if (a==0 && b==0 && c==0)
-      return 1
-    return c / Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c, 2) )
-  #---    ---#
-
-
-  get_x: () ->
-    return @x
-  
-  get_y: () ->
-    return @y
-
-  get_z: () ->
-    return @z
-
-  get_matrixes: () ->
-    @move_xy   = Matrix.create([ [1,0,0,0],
-                         [0,1,0,0],
-                         [0,0,1,0],
-                         [@xSize, @ySize,0,1] ])
-
-    @project_xy = $M([ [1,0,0,0],
-                          [0,1,0,0],
-                          [0,0,0,0],
-                          [0,0,0,1] ])
-
-    dist = Math.sqrt(Math.pow(@x_angle, 2) + Math.pow(@y_angle, 2) + Math.pow(@z_angle, 2))
-
-    @central_pr =      $M([ [1,0,0,0],
-                         [0,1,0,0],
-                         [0,0,1,-1/dist],
-                         [0,0,0,1] ])
-  multiplicate: (matrix) ->
-    point = $M([[@x, @y, @z, 1]])
-    matr = point.x(matrix)
-    @x = matr.e(1,1)
-    @y = matr.e(1,2)
-    @z = matr.e(1,3)
-  
-  move: (x=2800, y=1900, z=0) ->
-    move_matr = Matrix.create([ [1,0,0,0],
-                         [0,1,0,0],
-                         [0,0,1,0],
-                         [x, y, z,1] ])
-    point = $M([[@x, @y, @z, 1]])
-    result = point.x(move_matr)
-    @x = result.e(1,1)
-    @y = result.e(1,2)
-    @z = result.e(1,3)
-
-  get_screen_projection: () ->
-    this.get_matrixes()
-    point = $M([[@x, @y, @z, 1]])
-
-    if @central_project == true
-      centr_math = (point.x(@central_pr)).x(@move_xy)
-      nnx_c = centr_math.e(1,1)/centr_math.e(1,4)
-      nny_c = centr_math.e(1,2)/centr_math.e(1,4)
-      sx = nnx_c
-      sy = nny_c
-    else
-      orth_math  = point.x(@project_xy).x(@move_xy)
-      
-      sx = orth_math.e(1,1)
-      sy = orth_math.e(1,2)
-
-    return [sx/10, sy/10]
-
-
-
-class Light
-  constructor: (x, y, z) ->
-    @light_vector = Vector.create([x, y, z])
-    @ka = 0.2
-    @kd = 0.5
-    @kr = 0.8
-    @n = 7
-
-  reflection_vector: (normale_vector) ->
-    return ((normale_vector.cross(@light_vector)).cross(normale_vector).x(2)).subtract(@light_vector)
-
-  ambient: (intensity) ->
-    return intensity
-
-  diffuse: (normale_vector, intensity) ->
-    # Надо учитывать, что если косинус больше Пи/2, то угол равен 0
-    alpha = Math.cos_ab( normale_vector, @light_vector )
-    if alpha >= 0 && alpha <= Math.PI/2
-      return intensity * alpha
-    else
-      return 0
-
-  reflect: (normale_vector, intensity) ->
-    # HACK::: !!!
-    reflection_vector = this.reflection_vector( normale_vector )
-    alpha = reflection_vector.e(3) / Math.vector_length( reflection_vector )
-    if alpha < 0
-      return 0
-    else
-      return Math.pow( alpha, @n ) * intensity
-
-  # i - intensity
-  summary_intensity: ( ambient_i, diffuse_i, reflection_i, surf_i, normale_vector ) ->
-    a_i = Math.min(ambient_i, surf_i)
-    d_i = Math.min(diffuse_i, surf_i)
-    return @ka * this.ambient( a_i ) + @kd * this.diffuse(normale_vector, d_i) + @kr * this.reflect(normale_vector, reflection_i) 
-
-  set_x_coord: (val) ->
-    @light_vector.setElements( [val, @light_vector.e(2), @light_vector.e(3)] )
-
-  set_y_coord: (val) ->
-    @light_vector.setElements( [@light_vector.e(1), val, @light_vector.e(3)] )
-
-  set_z_coord: (val) ->
-    @light_vector.setElements( [@light_vector.e(1), @light_vector.e(2), val] )
-
-  set_ka: (val) ->
-    @ka = val
-
-  set_kd: (val) ->
-    @kd = val
-
-  set_kr: (val) ->
-    @kr = val
-
-  set_n: (val) ->
-    @n = val
-
-
-# Math - принимают на вход Vector
-Math.vector_length = (a) ->
-  return Math.sqrt( Math.pow(a.e(1), 2) + Math.pow(a.e(2), 2) + Math.pow(a.e(3), 2) )
-
-Math.cos_ab = (a, b) ->
-  return ( a.e(1)*b.e(1) + a.e(2)*b.e(2) + a.e(3)*b.e(3) ) / (Math.vector_length(a) * Math.vector_length(b))
-
-
+#=require 'math'
+#=require 'point'
+#=require 'light'
 
 class Surface
   constructor: (u_min, v_min, u_max, v_max) ->
@@ -363,9 +189,18 @@ class Surface
 
     return screen_points
   
+  insert_into_point_segments: ( point, poly) ->
+    if @point_segments[point] 
+      @point_segments[point].push( poly ) if not (poly in  @point_segments[point])
+    else
+      @point_segments[point] = [poly]
+
   surface_segments: () ->
     points = this.surface_screen_points()
     segments = []
+
+    # Хэш вида { 3D_Точка -> [ Полигоны ]}
+    @point_segments = new Array()
 
     for v_ind in [0...@du_count-1]
       for u_ind in [0...@dv_count]
@@ -377,6 +212,18 @@ class Surface
 
         poly_one = [points[point_one], points[point_two], points[point_three]]
         poly_two = [points[point_four], points[point_three], points[point_two]]
+
+        point_one = @screen_to_object_coordinates_hash[points[point_one]]
+        point_two = @screen_to_object_coordinates_hash[points[point_two]]
+        point_three = @screen_to_object_coordinates_hash[points[point_three]]
+        point_four = @screen_to_object_coordinates_hash[points[point_four]]
+
+        this.insert_into_point_segments( point_one, poly_one )
+        this.insert_into_point_segments( point_two, poly_one )
+        this.insert_into_point_segments( point_three, poly_one )
+        this.insert_into_point_segments( point_four, poly_two )
+        this.insert_into_point_segments( point_three, poly_two )
+        this.insert_into_point_segments( point_two, poly_two )
 
         segments.push( poly_one )
         segments.push( poly_two )
@@ -401,13 +248,21 @@ class Surface
       c += (first_surf_point[0] - second_surf_point[0]) * (first_surf_point[1] + second_surf_point[1])
     return [a, b, c]
 
-  flat_filling: (segment, ctx) ->
-    abc = this.calculate_normale( segment )
-    a = abc[0]
-    b = abc[1]
-    c = abc[2]
+  calc_cos: (normale) ->
+    a = normale[0]
+    b = normale[1]
+    c = normale[2]
     length_n = Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c , 2) )
     cos_s_n = -c / length_n
+    return cos_s_n
+
+  flat_filling: (segment, ctx) ->
+    abc = this.calculate_normale( segment )
+
+    #NOTE: Почему то сегментов больше чем 
+    point_segments = @point_segments[@screen_to_object_coordinates_hash[segment[0]]]
+
+    cos_s_n = this.calc_cos( abc )
     color_in = [undefined, undefined, undefined]
     color_out = [undefined, undefined, undefined]
     color = ""
@@ -445,13 +300,9 @@ class Surface
 
     normale = Vector.create( abc )
     if cos_s_n < 0
-      color_arr[0] = parseInt(@light.summary_intensity( @ambient_col[0], @diff_col[0], @diff_col[0], @color_in[0], normale ))
-      color_arr[1] = parseInt(@light.summary_intensity( @ambient_col[1], @diff_col[1], @diff_col[1], @color_in[1], normale ))
-      color_arr[2] = parseInt(@light.summary_intensity( @ambient_col[2], @diff_col[2], @diff_col[2], @color_in[2], normale ))
+      color_arr = this.calculate_light_intensity( @color_in, normale )
     else 
-      color_arr[0] = parseInt(@light.summary_intensity( @ambient_col[0], @diff_col[0], @diff_col[0], @color_out[0], normale ))
-      color_arr[1] = parseInt(@light.summary_intensity( @ambient_col[1], @diff_col[1], @diff_col[1], @color_out[1], normale ))
-      color_arr[2] = parseInt(@light.summary_intensity( @ambient_col[2], @diff_col[2], @diff_col[2], @color_out[2], normale ))
+      color_arr = this.calculate_light_intensity( @color_out, normale )
 
     if color_arr != []
       pixels = this.rasterization(segment)
@@ -464,6 +315,69 @@ class Surface
             @zbuffer[x][y] = z
             this.setPixel(canvasData, x, y, color_arr[0], color_arr[1], color_arr[2], 255)
   
+  calculate_point_normale: (segments) ->
+    edge_normale = [0, 0, 0]
+    for segment in segments
+      normale = this.calculate_normale( segment )
+      edge_normale[0] += normale[0]
+      edge_normale[1] += normale[1]
+      edge_normale[2] += normale[2]
+    n = segments.length
+    edge_normale[0] /= n
+    edge_normale[1] /= n
+    edge_normale[2] /= n
+    return edge_normale
+
+  calculate_light_intensity: (color, normale) ->
+    color_arr = [0, 0, 0]
+    color_arr[0] = parseInt(@light.summary_intensity( @ambient_col[0], @diff_col[0], @diff_col[0], color[0], normale ))
+    color_arr[1] = parseInt(@light.summary_intensity( @ambient_col[1], @diff_col[1], @diff_col[1], color[1], normale ))
+    color_arr[2] = parseInt(@light.summary_intensity( @ambient_col[2], @diff_col[2], @diff_col[2], color[2], normale ))
+    return color_arr
+
+  guro_shading: (segment, ctx, canvasData) ->
+    normale = this.calculate_normale(segment)
+    cos_s_n = this.calc_cos(normale)
+    if cos_s_n < 0
+      color_arr = this.calculate_light_intensity( @color_in, normale )
+    else 
+      color_arr = this.calculate_light_intensity( @color_out, normale )
+
+    a = @screen_to_object_coordinates_hash[segment[0]]
+    b = @screen_to_object_coordinates_hash[segment[1]]
+    c = @screen_to_object_coordinates_hash[segment[2]]
+    a_col = 
+    
+    color_arr = []
+    segment = this.sort_by_y(segment)
+    segment = this.sort_by_y(segment)
+
+    a = segment[0]
+    b = segment[1]
+    c = segment[2]
+
+    `for( var scany = b[1]; scany <= c[1]; scany++ )
+    {
+      var x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1]);
+      var z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1]);
+      var col1;
+    }
+    `
+
+    normale = Vector.create( abc )
+
+    if color_arr != []
+      pixels = this.rasterization(segment)
+      for pxl in pixels
+        x = pxl[0]
+        y = pxl[1]
+        if ( x >= 0 && y >= 0 && x < 600 && y < 600 )
+          z = this.calculate_z( segment[0], a, b, c, x, y )
+          if ( z > @zbuffer[x][y] )  
+            @zbuffer[x][y] = z
+            this.setPixel(canvasData, x, y, color_arr[0], color_arr[1], color_arr[2], 255)
+  
+
   calculate_z: ( point, a, b, c, x, y ) ->
     surf_point = @screen_to_object_coordinates_hash[ point ]
     d = -(a*surf_point[0] + b*surf_point[1] + c*surf_point[2])
@@ -478,35 +392,29 @@ class Surface
     return this;
   }
   `
-  rasterization: (segment) ->
-    working_segment = [1, 2, 3]
+
+  sort_by_y: (segment) ->
+    working_segment = new Array()
     working_segment[0] = segment[0]
     working_segment[1] = segment[1]
     working_segment[2] = segment[2]
-    
     a = working_segment[0]
     b = working_segment[1]
     c = working_segment[2]
+    if a[1] > b[1]
+      working_segment.swap(0, 1)
+    if a[1] > c[1]
+      working_segment.swap(0, 2)
+    if b[1] > c[1]
+      working_segment.swap(1, 2)
+
+    return working_segment
+
+  rasterization: (segment) ->
     pixels = []
-
-    # Сортируем вершины по y( 2 раза )
-    if a[1] > b[1]
-      working_segment.swap(0, 1)
-    if a[1] > c[1]
-      working_segment.swap(0, 2)
-    if b[1] > c[1]
-      working_segment.swap(1, 2)
-
-    a = working_segment[0]
-    b = working_segment[1]
-    c = working_segment[2]
-
-    if a[1] > b[1]
-      working_segment.swap(0, 1)
-    if a[1] > c[1]
-      working_segment.swap(0, 2)
-    if b[1] > c[1]
-      working_segment.swap(1, 2)
+    working_segment = []
+    working_segment = this.sort_by_y( segment )
+    working_segment = this.sort_by_y( working_segment )
 
     a = working_segment[0]
     b = working_segment[1]
@@ -654,363 +562,12 @@ class Surface
 
     this.draw_axises(ctx)
 
+window.Surface = Surface
+
+
+#TODO:  ##################3
+# подсчет нормали в вершинах
 
 #------------------- Конец описания классов ---------------------------------------
 
-$ ->
-  # Иниициализация начальных значений поверхности
-  u_min = 0.0
-  v_min = 0.0
-  u_max = 2*Math.PI/2
-  v_max = 2*Math.PI
-  sp = new Surface( u_min, v_min, u_max, v_max )
-  sp.draw()
-
-  a_val = 1
-  u_val = 45
-  v_val = 360
-  col_val = 121
-  radian = 180/Math.PI
-  @angle_min = -90
-  @angle_max = 90
-  @angle_val = 0
-  @d_max = 50
-  @d_min = 1
-  @d_step = 1
-  @min_col = 0
-  @max_col = 255
-  @d_val = 20
-
-  # Делаем элементы управления перетаскиваемыми
-  $('.angle_sliders').draggable()
-  $('.in_color').draggable()
-  $('.out_color').draggable()
-  $('.surface_parameters').draggable()
-  $('.light_coords').draggable()
-  $('.light_properties').draggable()
-  $('.diffuse_color').draggable()
-  $('.point_color').draggable()
-
-  # Слайдеры для управления вращением объекта
-  $('#angle_x').slider
-    min: @angle_min
-    max: @angle_max
-    value: @angle_val
-    slide: (event, ui) ->
-      $('#angle_x p').html("X: #{ui.value} &isin; [-90...90]")
-      sp.set_camera_x_angle( ui.value )
-      sp.draw()
-
-  $('#angle_y').slider
-    min: @angle_min
-    max: @angle_max
-    value: @angle_val
-    slide: (event, ui) ->
-      $('#angle_y p').html("Y: #{ui.value} &isin; [-90...90]")
-      sp.set_camera_y_angle( ui.value )
-      sp.draw()
-
-  $('#angle_z').slider
-    min: @angle_min
-    max: @angle_max
-    value: @angle_val
-    slide: (event, ui) ->
-      $('#angle_z p').html("Z: #{ui.value} &isin; [-90...90]")
-      sp.set_camera_z_angle( ui.value )
-      sp.draw()
-
-   # ---------------------------------------------------
-
-
-   # Слайдеры для управления параметрами поверхности
-   $('#u').slider
-    min: u_min*radian
-    max: u_max*radian
-    value: u_val
-    slide: (event, ui) ->
-      $('#u p').html("U: #{ui.value} &isin; [0...200]")
-      sp.set_u(ui.value)
-      sp.draw()
-
-  $('#v').slider
-    min: v_min*radian
-    max: v_max*radian
-    value: v_val
-    slide: (event, ui) ->
-      $('#v p').html("V: #{ui.value} &isin; [0...200]")
-      sp.set_v(ui.value)
-      sp.draw()
-
-  $('#step_u').slider
-    min: @d_min
-    max: @d_max
-    step: @d_step
-    value: @d_val
-    slide: (event, ui) ->
-      $('#step_u p').html("DU: #{ui.value} &isin; [0...50]")
-      sp.set_du_count(ui.value)
-      sp.draw()
-
-  $('#step_v').slider
-    min: @d_min
-    max: @d_max
-    step: @d_step
-    value: @d_val
-    slide: (event, ui) ->
-      $('#step_v p').html("DV: #{ui.value} &isin; [0...50]")
-      sp.set_dv_count(ui.value)
-      sp.draw()
-
-  $('#a').slider
-    min: 0
-    max: 10
-    step: @d_step
-    value: a_val
-    slide: (event, ui) ->
-      $('#a p').html("A: #{ui.value} &isin; [0...10]")
-      sp.set_surface_parameter(ui.value)
-      sp.draw()
-
-  $("input[name='filling']").change ->
-    if ($("input[@name='filling']:checked").val() == 'frame')
-      sp.set_flat(false)
-      sp.draw()
-    else if ($("input[@name='filling']:checked").val() == 'flat')
-      sp.set_flat(true)
-      sp.draw()
-    else if ($("input[@name='filling']:checked").val() == 'flat_with_zbuffer')
-      sp.set_flat_with_zbuffer(true)
-      sp.draw()
-    else
-      sp.set_flat(false)
-      sp.draw()
-
-
-  # ----------------------------------------------------
-
-
-  # Слайдеры для управления цветом
-  $('.in_color #r').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.in_color #r p').html("r: #{ui.value} 	&isin; [0...255]")
-      sp.set_in_color([ui.value,  $('.in_color #g').slider("value"), $('.in_color #b').slider("value") ])
-      color = "rgb(" + ui.value + "," + $('.in_color #g').slider("value") + "," + $('.in_color #b').slider("value") + ")"
-      $('#in_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.in_color #g').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.in_color #g p').html("g: #{ui.value} &isin; [0...255]")
-      sp.set_in_color([$('.in_color #r').slider("value"),  ui.value, $('.in_color #b').slider("value") ])
-      color = "rgb(" + $('.in_color #r').slider("value") + "," + ui.value + "," + $('.in_color #b').slider("value") + ")"
-      $('#in_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.in_color #b').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.in_color #b p').html("b: #{ui.value} &isin; [0...255]")
-      sp.set_in_color([$('.in_color #r').slider("value"),  $('.in_color #g').slider("value"), ui.value ])
-      color = "rgb(" + $('.in_color #r').slider("value") + "," + $('.in_color #g').slider("value") + "," + ui.value + ")"
-      $('#in_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.out_color #r').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.out_color #r p').html("r: #{ui.value} &isin; [0...255]")
-      sp.set_out_color([ui.value,  $('.out_color #g').slider("value"), $('.out_color #b').slider("value") ])
-      color = "rgb(" + ui.value + "," + $('.out_color #g').slider("value") + "," + $('.out_color #b').slider("value") + ")"
-      $('#out_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.out_color #g').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.out_color #g p').html("g: #{ui.value} &isin; [0...255]")
-      sp.set_out_color([$('.out_color #r').slider("value"),  ui.value, $('.out_color #b').slider("value") ])
-      color = "rgb(" + $('.out_color #r').slider("value") + "," + ui.value + "," + $('.out_color #b').slider("value") + ")"
-      $('#out_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.out_color #b').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.out_color #b p').html("b: #{ui.value} &isin; [0...255]")
-      sp.set_out_color([$('.out_color #r').slider("value"),  $('.out_color #g').slider("value"), ui.value ])
-      color = "rgb(" + $('.out_color #r').slider("value") + "," + $('.out_color #g').slider("value") + "," +  ui.value + ")"
-      $('#out_color_show').css('background-color', color)
-      sp.draw()
-
-  @light_min = -300
-  @light_max = 300
-  @light_coord_val = 100
-  # NOTE: Посмотри как получить доступ к объекту в классе
-  $('.light_coords #x').slider
-    min: @light_min
-    max: @light_max
-    step: 1
-    value: @light_coord_val
-    slide: (event, ui) ->
-      $('.light_coords #x p').html("X: #{ui.value} &isin; [-300...300]")
-      sp.set_light_coords(ui.value,  $('.light_coords #y').slider("value"), $('.light_coords #z').slider("value") )
-      sp.draw()
-
-  $('.light_coords #y').slider
-    min: @light_min
-    max: @light_max
-    step: 1
-    value: @light_coord_val
-    slide: (event, ui) ->
-      $('.light_coords #y p').html("Y: #{ui.value} &isin; [-300...300]")
-      sp.set_light_coords($('.light_coords #x').slider("value"), ui.value, $('.light_coords #z').slider("value") )
-      sp.draw()
-
-  $('.light_coords #z').slider
-    min: @light_min
-    max: @light_max
-    step: 1
-    value: @light_coord_val
-    slide: (event, ui) ->
-      $('.light_coords #z p').html("Z: #{ui.value} &isin; [-300...300]")
-      sp.set_light_coords($('.light_coords #x').slider("value"), $('.light_coords #y').slider("value"), ui.value )
-      sp.draw()
-
-  @light_prop_min = 0
-  @light_prop_max = 1
-  @light_prop_val = 0.3
-  $('.light_properties #ambient').slider
-    min: @light_prop_min
-    max: @light_prop_max
-    step: 0.1
-    value: @light_prop_val
-    slide: (event, ui) ->
-      $('.light_properties #ambient p').html("ka: #{ui.value} &isin; [0...1]")
-      sp.set_light_koeff(ui.value,  $('.light_properties #diffuse').slider("value"), $('.light_properties #reflection').slider("value") )
-      sp.draw()
-    
-  $('.light_properties #diffuse').slider
-    min: @light_prop_min
-    max: @light_prop_max
-    step: 0.1
-    value: @light_prop_val
-    slide: (event, ui) ->
-      $('.light_properties #diffuse p').html("kd: #{ui.value} &isin; [0...1]")
-      sp.set_light_koeff($('.light_properties #ambient').slider("value"), ui.value, $('.light_properties #reflection').slider("value") )
-      sp.draw()
-
-  $('.light_properties #reflection').slider
-    min: @light_prop_min
-    max: @light_prop_max
-    step: 0.1
-    value: @light_prop_val
-    slide: (event, ui) ->
-      $('.light_properties #reflection p').html("kr: #{ui.value} &isin; [0...1]")
-      sp.set_light_koeff($('.light_properties #ambient').slider("value"), $('.light_properties #diffuse').slider("value"), ui.value )
-      sp.draw()
-
-  $('.light_properties #n').slider
-    min: 0
-    max: 20
-    step: 1
-    value: 5
-    slide: (event, ui) ->
-      $('.light_properties #n p').html("n: #{ui.value} &isin; [0...1]")
-      sp.set_light_refl_n( ui.value )
-      sp.draw()
-
-
-#---------------------------------
-# Слайдеры для управления цветом источника света
-  col_val = 255
-  $('.diffuse_color #r').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.in_color #r p').html("r: #{ui.value}  &isin; [0...255]")
-      sp.set_diffuse_color([ui.value,  $('.diffuse_color #g').slider("value"), $('.diffuse_color #b').slider("value") ])
-      color = "rgb(" + ui.value + "," + $('.diffuse_color #g').slider("value") + "," + $('.diffuse_color #b').slider("value") + ")"
-      $('#diffuse_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.diffuse_color #g').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.diffuse_color #g p').html("g: #{ui.value} &isin; [0...255]")
-      sp.set_diffuse_color([$('.diffuse_color #r').slider("value"),  ui.value, $('.diffuse_color #b').slider("value") ])
-      color = "rgb(" + $('.diffuse_color #r').slider("value") + "," + ui.value + "," + $('.diffuse_color #b').slider("value") + ")"
-      $('#diffuse_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.diffuse_color #b').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.diffuse_color #b p').html("b: #{ui.value} &isin; [0...255]")
-      sp.set_diffuse_color([$('.diffuse_color #r').slider("value"),  $('.diffuse_color #g').slider("value"), ui.value ])
-      color = "rgb(" + $('.diffuse_color #r').slider("value") + "," + $('.diffuse_color #g').slider("value") + "," + ui.value + ")"
-      $('#diffuse_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.point_color #r').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.point_color #r p').html("r: #{ui.value} &isin; [0...255]")
-      sp.set_point_color([ui.value,  $('.point_color #g').slider("value"), $('.point_color #b').slider("value") ])
-      color = "rgb(" + ui.value + "," + $('.point_color #g').slider("value") + "," + $('.point_color #b').slider("value") + ")"
-      $('#point_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.point_color #g').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.point_color #g p').html("g: #{ui.value} &isin; [0...255]")
-      sp.set_point_color([$('.point_color #r').slider("value"),  ui.value, $('.point_color #b').slider("value") ])
-      color = "rgb(" + $('.point_color #r').slider("value") + "," + ui.value + "," + $('.point_color #b').slider("value") + ")"
-      $('#point_color_show').css('background-color', color)
-      sp.draw()
-
-  $('.point_color #b').slider
-    min: @min_col
-    max: @max_col
-    step: 1
-    value: col_val
-    slide: (event, ui) ->
-      $('.point_color #b p').html("b: #{ui.value} &isin; [0...255]")
-      sp.set_point_color([$('.point_color #r').slider("value"),  $('.point_color #g').slider("value"), ui.value ])
-      color = "rgb(" + $('.point_color #r').slider("value") + "," + $('.point_color #g').slider("value") + "," +  ui.value + ")"
-      $('#point_color_show').css('background-color', color)
-      sp.draw()
+#=require 'interface'
