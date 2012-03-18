@@ -55,5 +55,5 @@ class Light
 
   set_n: (val) ->
     @n = val
-    
+
 window.Light = Light

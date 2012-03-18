@@ -43,6 +43,8 @@ class Surface
     # Координаты источника света
     @light = new Light(100, 100, 100)
 
+    @guro = false
+
 
   
   # Считаем матрицу поворота. Стоит вынести за пределы текущего класса
@@ -111,10 +113,12 @@ class Surface
   set_flat: ( val ) ->
     @flat = val
     @flat_with_zbuffer = false
+    @guro = false
 
   set_flat_with_zbuffer: ( val ) ->
     @flat_with_zbuffer = val
     @flat = false
+    @guro =false
 
   set_surface_parameter: ( val ) ->
     @surface_parameter = val
@@ -151,6 +155,11 @@ class Surface
 
   set_point_color: (col_arr) ->
     @ambient_col = col_arr
+
+  set_guro: (val) ->
+    @guro = val
+    @flat_with_zbuffer = false
+    @flat = false 
 
   point_equation: ( u, v ) ->
     a = @surface_parameter * 1000
@@ -242,6 +251,10 @@ class Surface
         j = i + 1
       first_surf_point = @screen_to_object_coordinates_hash[ segment[i] ]
       second_surf_point = @screen_to_object_coordinates_hash[ segment[j] ]
+      if !first_surf_point
+        first_surf_point = 0
+      if !second_surf_point
+        second_surf_point = 0
 
       a += (first_surf_point[1] - second_surf_point[1]) * (first_surf_point[2] + second_surf_point[2])
       b += (first_surf_point[2] - second_surf_point[2]) * (first_surf_point[0] + second_surf_point[0])
@@ -289,43 +302,36 @@ class Surface
 
   flat_filling_with_zbuffer: (segment, ctx, canvasData) ->
     abc = this.calculate_normale( segment )
-    a = abc[0]
-    b = abc[1]
-    c = abc[2]
-    length_n = Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c , 2) )
-    cos_s_n = -c / length_n
-    color_in = [undefined, undefined, undefined]
-    color_out = [undefined, undefined, undefined]
-    color_arr = []
+    if !(this.isNaN_arr(abc))
+      color_arr = this.calculate_light_intensity_with_cos( abc )
+      if !(this.isNaN_arr(color_arr))
+        @canvasData = canvasData
+        if color_arr != []
+          pixels = this.rasterization(segment)
+          for pxl in pixels
+            x = pxl[0]
+            y = pxl[1]
+            z = this.calculate_z( segment[0], abc[0], abc[1], abc[2], x, y )
+            this.draw_zbuffer(x, y, z, color_arr )
 
-    normale = Vector.create( abc )
-    if cos_s_n < 0
-      color_arr = this.calculate_light_intensity( @color_in, normale )
-    else 
-      color_arr = this.calculate_light_intensity( @color_out, normale )
 
-    if color_arr != []
-      pixels = this.rasterization(segment)
-      for pxl in pixels
-        x = pxl[0]
-        y = pxl[1]
-        if ( x >= 0 && y >= 0 && x < 600 && y < 600 )
-          z = this.calculate_z( segment[0], a, b, c, x, y )
-          if ( z > @zbuffer[x][y] )  
-            @zbuffer[x][y] = z
-            this.setPixel(canvasData, x, y, color_arr[0], color_arr[1], color_arr[2], 255)
-  
+  calculate_z: ( point, a, b, c, x, y ) ->
+    surf_point = @screen_to_object_coordinates_hash[ point ]
+    d = -(a*surf_point[0] + b*surf_point[1] + c*surf_point[2])
+    ans = -(a * x + b * y + d  ) / c
+    return parseInt(ans)
+
   calculate_point_normale: (segments) ->
     edge_normale = [0, 0, 0]
     for segment in segments
       normale = this.calculate_normale( segment )
-      edge_normale[0] += normale[0]
-      edge_normale[1] += normale[1]
-      edge_normale[2] += normale[2]
+      edge_normale[0] += normale[0] if normale[0] != NaN
+      edge_normale[1] += normale[1] if normale[1] != NaN
+      edge_normale[2] += normale[2] if normale[2] != NaN
     n = segments.length
-    edge_normale[0] /= n
-    edge_normale[1] /= n
-    edge_normale[2] /= n
+    edge_normale[0] = parseInt( edge_normale[0] / n)
+    edge_normale[1] = parseInt( edge_normale[1] / n)
+    edge_normale[2] = parseInt( edge_normale[2] / n)
     return edge_normale
 
   calculate_light_intensity: (color, normale) ->
@@ -335,54 +341,104 @@ class Surface
     color_arr[2] = parseInt(@light.summary_intensity( @ambient_col[2], @diff_col[2], @diff_col[2], color[2], normale ))
     return color_arr
 
-  guro_shading: (segment, ctx, canvasData) ->
-    normale = this.calculate_normale(segment)
-    cos_s_n = this.calc_cos(normale)
+  calculate_light_intensity_with_cos: ( normale ) ->
+    cos_s_n = this.calc_cos( normale )
+    normale = Vector.create( normale )
+    color_arr = []
     if cos_s_n < 0
       color_arr = this.calculate_light_intensity( @color_in, normale )
     else 
       color_arr = this.calculate_light_intensity( @color_out, normale )
+    return color_arr
+
+  guro_shading: (segment, ctx, canvasData) ->
+
+    segment = this.sort_by_y(segment)
+    segment = this.sort_by_y(segment)
 
     a = @screen_to_object_coordinates_hash[segment[0]]
     b = @screen_to_object_coordinates_hash[segment[1]]
     c = @screen_to_object_coordinates_hash[segment[2]]
-    a_col = 
+    if !(this.isNaN_arr(a) || this.isNaN_arr(b) || this.isNaN_arr(c))
+      a_normale =  this.calculate_point_normale( @point_segments[a] ) 
+      a_col = this.calculate_light_intensity_with_cos( a_normale )
+      b_normale =  this.calculate_point_normale( @point_segments[b] )
+      b_col = this.calculate_light_intensity_with_cos( b_normale )
+      c_normale = this.calculate_point_normale( @point_segments[c] ) 
+      c_col = this.calculate_light_intensity_with_cos( c_normale )
+      
+      x1 = 0
+      x2 = 0
+      z1 = 0
+      z2 = 0
+      col1 = new Array()
+      col2 = new Array()
+      @canvasData = canvasData
+      if !(this.isNaN_arr(a_col) || this.isNaN_arr(b_col) || this.isNaN_arr(c_col))
+        for scany in [a[1]..c[1]]
+          x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1]);
+          z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1]);
+          col1[0] = a_col[0] + (scany - a[1]) * (c_col[0] - a_col[0]) / (c[1] - a[1]);
+          col1[1] = a_col[1] + (scany - a[1]) * (c_col[1] - a_col[1]) / (c[1] - a[1]);
+          col1[2] = a_col[2] + (scany - a[1]) * (c_col[2] - a_col[2]) / (c[1] - a[1]);
+          if (scany < b[1])
+            col2[0] = a_col[0] + (scany - a[1]) * (b_col[0] - a_col[0]) / (b[1] - a[1]);  
+            col2[1] = a_col[1] + (scany - a[1]) * (b_col[1] - a_col[1]) / (b[1] - a[1]);
+            col2[2] = a_col[2] + (scany - a[1]) * (b_col[2] - a_col[2]) / (b[1] - a[1]);
+            x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
+            z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1])
+          else
+            if( c[1] == b[1] )
+              col2[0]  = b_col[0];
+              col2[1]  = b_col[1];
+              col2[2]  = b_col[2];
+              x2 = b[0];
+              z2 = b[2];
+            else
+              col2[0] = b_col[0] + (scany - b[1]) * (c_col[0] - b_col[0]) / (c[1] - b[1]);
+              col2[1] = b_col[1] + (scany - b[1]) * (c_col[1] - b_col[1]) / (c[1] - b[1]);
+              col2[2] = b_col[2] + (scany - b[1]) * (c_col[2] - b_col[2]) / (c[1] - b[1]);
+              x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1]);
+              z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1]);
+          this.linear_interpolation_color( col1, col2, x1, x2, z1, z2, scany);
+      
+  isNaN_arr: (arr) ->
+    return true if isNaN(arr[0]) || isNaN(arr[1]) || isNaN(arr[2])
+    return false
+
+  arrToInt: (arr) ->
+    intarr = [0,0,0]
+    intarr[0] = parseInt arr[0]
+    intarr[1] = parseInt arr[1]
+    intarr[2] = parseInt arr[2]
+    return intarr
+
+  linear_interpolation_color: ( col1, col2, x1, x2, z1, z2, cury ) ->
+    color = [0,0,0]
+    # col1 = this.arrToInt(col1)
+    # col2 = this.arrToInt(col2)
+    x1 = parseInt(x1)
+    x2 = parseInt(x2)
+    # z1 = parseInt(z1)
+    # z2 = parseInt(z2)
     
-    color_arr = []
-    segment = this.sort_by_y(segment)
-    segment = this.sort_by_y(segment)
+    for i in [x1..x2]
+      color[0] = parseInt(col1[0] + (i - x1)*(col2[0] - col1[0]) / (x2 - x1))
+      color[1] = parseInt(col1[1] + (i - x1)*(col2[1] - col1[1]) / (x2 - x1))
+      color[2] = parseInt(col1[2] + (i - x1)*(col2[2] - col1[2]) / (x2 - x1))
+      z = z1 + (i - x1)*(z2 - z1) / (x2 - x1)
+      
+      z = parseInt(z)
+      y = parseInt(cury/10)  + 190
+      x = parseInt(i/10)     + 280
+      color = this.arrToInt(color)
+      this.draw_zbuffer(x, y, z, color)
 
-    a = segment[0]
-    b = segment[1]
-    c = segment[2]
-
-    `for( var scany = b[1]; scany <= c[1]; scany++ )
-    {
-      var x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1]);
-      var z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1]);
-      var col1;
-    }
-    `
-
-    normale = Vector.create( abc )
-
-    if color_arr != []
-      pixels = this.rasterization(segment)
-      for pxl in pixels
-        x = pxl[0]
-        y = pxl[1]
-        if ( x >= 0 && y >= 0 && x < 600 && y < 600 )
-          z = this.calculate_z( segment[0], a, b, c, x, y )
-          if ( z > @zbuffer[x][y] )  
-            @zbuffer[x][y] = z
-            this.setPixel(canvasData, x, y, color_arr[0], color_arr[1], color_arr[2], 255)
-  
-
-  calculate_z: ( point, a, b, c, x, y ) ->
-    surf_point = @screen_to_object_coordinates_hash[ point ]
-    d = -(a*surf_point[0] + b*surf_point[1] + c*surf_point[2])
-    ans = -(a * x + b * y + d  ) / c
-    return ans
+  draw_zbuffer: (x, y, z, color) ->
+    if ( x >= 0 && y >= 0 && x < 600 && y < 600 )
+      if ( z > @zbuffer[x][y] )  
+        @zbuffer[x][y] = z
+        this.setPixel(@canvasData, x, y, color[0], color[1], color[2], 255)
 
   ` 
   Array.prototype.swap = function (x,y) {
@@ -550,6 +606,21 @@ class Surface
       canvasData = ctx.createImageData(canvas.width, canvas.height);
       for segment in segments 
         this.flat_filling_with_zbuffer(segment, ctx, canvasData)
+      ctx.putImageData(canvasData, 0, 0)
+    else if @guro
+      @zbuffer = new Array(canvas.width+1)
+      `
+      for(var i = 0; i<canvas.width+1; i++) 
+        this.zbuffer[i] = new Array(canvas.height+1);
+      `
+      `
+      for( var i = 0; i < canvas.width + 1; i++ )
+        for( var j = 0; j < canvas.height + 1; j++ )
+          this.zbuffer[i][j] = -77777777777777777777.0
+      `
+      canvasData = ctx.createImageData(canvas.width, canvas.height);
+      for segment in segments 
+        this.guro_shading(segment, ctx, canvasData)
       ctx.putImageData(canvasData, 0, 0)
     else
       for segment in segments

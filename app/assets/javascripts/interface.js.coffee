@@ -123,6 +123,9 @@ $ ->
     else if ($("input[@name='filling']:checked").val() == 'flat_with_zbuffer')
       sp.set_flat_with_zbuffer(true)
       sp.draw()
+    else if ($("input[@name='filling']:checked").val() == 'guro')
+      sp.set_guro(true)
+      sp.draw()
     else
       sp.set_flat(false)
       sp.draw()
