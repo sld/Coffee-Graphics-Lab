@@ -126,6 +126,9 @@ $ ->
     else if ($("input[@name='filling']:checked").val() == 'guro')
       sp.set_guro(true)
       sp.draw()
+    else if ($("input[@name='filling']:checked").val() == 'phong')
+      sp.set_phong(true)
+      sp.draw()
     else
       sp.set_flat(false)
       sp.draw()
