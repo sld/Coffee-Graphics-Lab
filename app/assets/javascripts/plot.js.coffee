@@ -45,7 +45,7 @@ class Surface
 
     @guro = false
     @phong = false
-
+    @point_segments = new Array()
 
   
   # Считаем матрицу поворота. Стоит вынести за пределы текущего класса
@@ -209,9 +209,9 @@ class Surface
     return screen_points
   
   insert_into_point_segments: ( point, poly) ->
-    if @point_segments[point] 
-      @point_segments[point].push( poly ) if not (poly in  @point_segments[point])
-    else
+    if @point_segments[point] && (not (poly in  @point_segments[point]))
+      @point_segments[point].push( poly )
+    else if !@point_segments[point]
       @point_segments[point] = [poly]
 
   surface_segments: () ->
@@ -219,7 +219,6 @@ class Surface
     segments = []
 
     # Хэш вида { 3D_Точка -> [ Полигоны ]}
-    @point_segments = new Array()
 
     for v_ind in [0...@du_count-1]
       for u_ind in [0...@dv_count]
@@ -333,15 +332,17 @@ class Surface
 
   calculate_point_normale: (segments) ->
     edge_normale = [0, 0, 0]
+    segments ||= []
     for segment in segments
       normale = this.calculate_normale( segment )
       edge_normale[0] += normale[0] if normale[0] != NaN
       edge_normale[1] += normale[1] if normale[1] != NaN
       edge_normale[2] += normale[2] if normale[2] != NaN
     n = segments.length
-    edge_normale[0] = parseInt( edge_normale[0] / n)
-    edge_normale[1] = parseInt( edge_normale[1] / n)
-    edge_normale[2] = parseInt( edge_normale[2] / n)
+    n = 1 if n == 0
+    edge_normale[0] = ( edge_normale[0] / n)
+    edge_normale[1] = ( edge_normale[1] / n)
+    edge_normale[2] = ( edge_normale[2] / n)
     return edge_normale
 
   calculate_light_intensity: (color, normale) ->
@@ -418,22 +419,24 @@ class Surface
     segment = this.sort_by_y(segment)
     segment = this.sort_by_y(segment)
 
+    segment_normale = this.calculate_normale(segment)
+    @segment_cos = this.calc_cos(segment_normale)
+
     a = @screen_to_object_coordinates_hash[segment[0]]
     b = @screen_to_object_coordinates_hash[segment[1]]
     c = @screen_to_object_coordinates_hash[segment[2]]
     a_normale =  this.calculate_point_normale( @point_segments[a] ) 
     b_normale =  this.calculate_point_normale( @point_segments[b] )
     c_normale = this.calculate_point_normale( @point_segments[c] ) 
+
     
     x1 = 0
     x2 = 0
     z1 = 0
     z2 = 0
-    col1 = new Array()
-    col2 = new Array()
     @canvasData = canvasData
-    norm = [0,0,0]
-    norm_pre = [0,0,0]
+    norm = new Array()
+    norm_pre = new Array()
 
     if !(this.isNaN_arr(a_normale) || this.isNaN_arr(b_normale) || this.isNaN_arr(c_normale))
       a_normale =  Vector.create( a_normale )
@@ -443,11 +446,14 @@ class Surface
       aa = parseInt(a[1])
       cc = parseInt(c[1])
       for scany in [aa..cc]
+        # alert([c[1], a[1]])
         x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1])
         z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1])
-        norm_pre = a_normale.add( (c_normale.subtract(a_normale)) ).x( (scany - a[1]) / (c[1] - a[1]) )
+        norm_pre = (c_normale.subtract(a_normale)).x( (scany - a[1]) / (c[1] - a[1])) 
+        norm_pre = a_normale.add( norm_pre )
         if (scany < b[1])
-          norm = a_normale.add( (b_normale.subtract(a_normale))).x( (scany - a[1]) / (b[1] - a[1]) )
+          norm = (b_normale.subtract(a_normale)).x( (scany - a[1]) / (b[1] - a[1]) )
+          norm = a_normale.add( norm  )
           x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
           z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1])
         else
@@ -456,9 +462,11 @@ class Surface
             x2 = b[0]
             z2 = b[2]
           else
-            norm = a_normale.add( (c_normale.subtract(b_normale))).x( (scany - a[1]) / (c[1] - b[1]) )
+            norm = (c_normale.subtract(b_normale)).x( (scany - a[1]) / (c[1] - b[1]))
+            norm = a_normale.add( norm )
             x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1])
             z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1])
+        # console.log(inspect_norm1, inspect_norm2)
         this.linear_interpolation_normale( norm_pre, norm, x1, x2, z1, z2, scany)
       
       
@@ -476,22 +484,24 @@ class Surface
 
   linear_interpolation_normale: ( norm1, norm2, x1, x2, z1, z2, cury ) ->
     color = [0,0,0]
-    
+        
     x1 = parseInt(x1)
     x2 = parseInt(x2)
-
     dx = x2 - x1
     for i in [x1..x2]
-      norm = norm1.add(norm2.subtract(norm1)).x( (i - x1) / dx  )
+      nrm = norm2.subtract(norm1)
+      nrm = nrm.x( (i-x1)/dx )
+      nrm = norm1.add(nrm)
+      norm = nrm
       norm_arr = [ norm.e(1), norm.e(2), norm.e(3) ]
       color = this.calculate_light_intensity_with_cos( norm_arr )
       z = z1 + (i - x1)*(z2 - z1) / dx
       
       z = parseInt(z)
-      y = parseInt(cury)
-      x = parseInt(i)
-      if !(this.isNaN_arr(color))
-        this.draw_zbuffer(x, y, z, color)
+      y = parseInt(cury/10)  + 190
+      x = parseInt(i/10)     + 280
+      # if !(this.isNaN_arr(color))
+      this.draw_zbuffer(x, y, z, color)
 
   linear_interpolation_color: ( col1, col2, x1, x2, z1, z2, cury ) ->
     color = [0,0,0]
