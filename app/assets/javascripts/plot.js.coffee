@@ -495,7 +495,7 @@ class Surface
           z2 = b[2]
         else
           norm = (c_normale.subtract(b_normale)).x( (scany - a[1]) / (c[1] - b[1]))
-          norm = a_normale.add( norm )
+          norm = b_normale.add( norm )
           x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1])
           z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1])
       # console.log(inspect_norm1, inspect_norm2)
