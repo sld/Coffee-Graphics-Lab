@@ -175,7 +175,8 @@ class Surface
     a = @surface_parameter * 1000
     x = a * Math.sin( u ) * Math.cos( v ) 
     y = a * Math.sin( u ) * Math.sin( v ) 
-    z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
+    #z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
+    z = a * ( Math.sin( u / 2 ) ) + Math.cos( u ) 
     return [x, y, z]
 
   surface_3d_points: () ->
@@ -188,10 +189,13 @@ class Surface
     v_max = @v_max + @dv/2
 
     while u < u_max
+      u += @du
       while v < v_max
         v += @dv
-        points.push( this.point_equation(u, v) )
-      u += @du
+        point = this.point_equation(u, v)
+        if point != []
+          points.push( point )
+      #u += @du
       v = @v_min
     return points
 
@@ -209,10 +213,8 @@ class Surface
     return screen_points
   
   insert_into_point_segments: ( point, poly) ->
-    if @point_segments[point] && (not (poly in  @point_segments[point]))
-      @point_segments[point].push( poly )
-    else if !@point_segments[point]
-      @point_segments[point] = [poly]
+    @point_segments[point] ||= []
+    @point_segments[point].push(poly)
 
   surface_segments: () ->
     points = this.surface_screen_points()
@@ -260,10 +262,6 @@ class Surface
         j = i + 1
       first_surf_point = @screen_to_object_coordinates_hash[ segment[i] ]
       second_surf_point = @screen_to_object_coordinates_hash[ segment[j] ]
-      if !first_surf_point
-        first_surf_point = 0
-      if !second_surf_point
-        second_surf_point = 0
 
       a += (first_surf_point[1] - second_surf_point[1]) * (first_surf_point[2] + second_surf_point[2])
       b += (first_surf_point[2] - second_surf_point[2]) * (first_surf_point[0] + second_surf_point[0])
@@ -275,15 +273,12 @@ class Surface
     b = normale[1]
     c = normale[2]
     length_n = Math.sqrt( Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c , 2) )
-    cos_s_n = -c / length_n
+    cos_s_n = c / length_n
     return cos_s_n
 
   flat_filling: (segment, ctx) ->
     abc = this.calculate_normale( segment )
-
-    #NOTE: Почему то сегментов больше чем 
-    point_segments = @point_segments[@screen_to_object_coordinates_hash[segment[0]]]
-
+    
     cos_s_n = this.calc_cos( abc )
     color_in = [undefined, undefined, undefined]
     color_out = [undefined, undefined, undefined]
@@ -309,25 +304,60 @@ class Surface
 
 
 
+  # flat_filling_with_zbuffer: (segment, ctx, canvasData) ->
+  #   abc = this.calculate_normale( segment )
+  
+  #   color_arr = this.calculate_light_intensity_with_cos( abc )
+  #   if !(this.isNaN_arr(color_arr))
+  #     @canvasData = canvasData
+  #     if color_arr != [] && !(this.isNaN_arr(color_arr))
+  #       pixels = this.rasterization(segment)
+  #       for pxl in pixels
+  #         x = pxl[0]
+  #         y = pxl[1]
+  #         # z =  @screen_to_object_coordinates_hash[ segment[1] ][2]
+  #         this.calculate_z( segment[0], abc[0], abc[1], abc[2], x, y )
+  #         this.draw_zbuffer(x, y, z, color_arr )
+
   flat_filling_with_zbuffer: (segment, ctx, canvasData) ->
     abc = this.calculate_normale( segment )
-    if !(this.isNaN_arr(abc))
-      color_arr = this.calculate_light_intensity_with_cos( abc )
-      if !(this.isNaN_arr(color_arr))
-        @canvasData = canvasData
-        if color_arr != []
-          pixels = this.rasterization(segment)
-          for pxl in pixels
-            x = pxl[0]
-            y = pxl[1]
-            z = this.calculate_z( segment[0], abc[0], abc[1], abc[2], x, y )
-            this.draw_zbuffer(x, y, z, color_arr )
+    color_arr = this.calculate_light_intensity_with_cos( abc )
 
+    segment = this.sort_by_y(segment)
+    segment = this.sort_by_y(segment)
+
+    a = @screen_to_object_coordinates_hash[segment[0]]
+    b = @screen_to_object_coordinates_hash[segment[1]]
+    c = @screen_to_object_coordinates_hash[segment[2]]
+
+    aa = parseInt(a[1])
+    cc = parseInt(c[1])
+
+    @canvasData = canvasData
+    x1=0
+    x2=0
+    z1=0
+    z2=0
+    
+    for scany in [aa..cc]
+      x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1])
+      z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1])
+      if (scany < b[1])
+        x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
+        z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1])
+      else
+        if( c[1] == b[1] )
+          x2 = b[0]
+          z2 = b[2]
+        else
+          x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1])
+          z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1])
+      this.linear_interpolation_flat( color_arr, x1, x2, z1, z2, scany)
 
   calculate_z: ( point, a, b, c, x, y ) ->
     surf_point = @screen_to_object_coordinates_hash[ point ]
     d = -(a*surf_point[0] + b*surf_point[1] + c*surf_point[2])
-    ans = -(a * x + b * y + d  ) / c
+    ans = -(a * x + b * y + d  ) / (c + 0.001)
     return parseInt(ans)
 
   calculate_point_normale: (segments) ->
@@ -384,7 +414,9 @@ class Surface
     col1 = new Array()
     col2 = new Array()
     @canvasData = canvasData
-    if !(this.isNaN_arr(a_col) || this.isNaN_arr(b_col) || this.isNaN_arr(c_col))
+    if (this.isNaN_arr(a_col) || this.isNaN_arr(b_col) || this.isNaN_arr(c_col))
+      console.log(a_col, b_col, c_col, a_normale, @point_segments[a])
+    else
       aa = parseInt(a[1])
       cc = parseInt(c[1])
       for scany in [aa..cc]
@@ -438,36 +470,36 @@ class Surface
     norm = new Array()
     norm_pre = new Array()
 
-    if !(this.isNaN_arr(a_normale) || this.isNaN_arr(b_normale) || this.isNaN_arr(c_normale))
-      a_normale =  Vector.create( a_normale )
-      b_normale =  Vector.create( b_normale )
-      c_normale =  Vector.create( c_normale )
+    # if !(this.isNaN_arr(a_normale) || this.isNaN_arr(b_normale) || this.isNaN_arr(c_normale))
+    a_normale =  Vector.create( a_normale )
+    b_normale =  Vector.create( b_normale )
+    c_normale =  Vector.create( c_normale )
 
-      aa = parseInt(a[1])
-      cc = parseInt(c[1])
-      for scany in [aa..cc]
-        # alert([c[1], a[1]])
-        x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1])
-        z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1])
-        norm_pre = (c_normale.subtract(a_normale)).x( (scany - a[1]) / (c[1] - a[1])) 
-        norm_pre = a_normale.add( norm_pre )
-        if (scany < b[1])
-          norm = (b_normale.subtract(a_normale)).x( (scany - a[1]) / (b[1] - a[1]) )
-          norm = a_normale.add( norm  )
-          x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
-          z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1])
+    aa = parseInt(a[1])
+    cc = parseInt(c[1])
+    for scany in [aa..cc]
+      # alert([c[1], a[1]])
+      x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1])
+      z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1])
+      norm_pre = (c_normale.subtract(a_normale)).x( (scany - a[1]) / (c[1] - a[1])) 
+      norm_pre = a_normale.add( norm_pre )
+      if (scany < b[1])
+        norm = (b_normale.subtract(a_normale)).x( (scany - a[1]) / (b[1] - a[1]) )
+        norm = a_normale.add( norm  )
+        x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
+        z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1])
+      else
+        if( c[1] == b[1] )
+          norm = b_normale
+          x2 = b[0]
+          z2 = b[2]
         else
-          if( c[1] == b[1] )
-            norm = b_normale
-            x2 = b[0]
-            z2 = b[2]
-          else
-            norm = (c_normale.subtract(b_normale)).x( (scany - a[1]) / (c[1] - b[1]))
-            norm = a_normale.add( norm )
-            x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1])
-            z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1])
-        # console.log(inspect_norm1, inspect_norm2)
-        this.linear_interpolation_normale( norm_pre, norm, x1, x2, z1, z2, scany)
+          norm = (c_normale.subtract(b_normale)).x( (scany - a[1]) / (c[1] - b[1]))
+          norm = a_normale.add( norm )
+          x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1])
+          z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1])
+      # console.log(inspect_norm1, inspect_norm2)
+      this.linear_interpolation_normale( norm_pre, norm, x1, x2, z1, z2, scany)
       
       
   isNaN_arr: (arr) ->
@@ -481,6 +513,19 @@ class Surface
     intarr[2] = parseInt arr[2]
     return intarr
 
+  linear_interpolation_flat: ( color, x1, x2, z1, z2, cury ) -> 
+    x1 = parseInt(x1)
+    x2 = parseInt(x2)
+    dx = x2 - x1
+    for i in [x1..x2]
+      z = z1 + (i - x1)*(z2 - z1) / dx
+      
+      z = parseInt(z)
+      y = parseInt(cury/10)  + 190
+      x = parseInt(i/10)     + 280
+     
+      # if !(this.isNaN_arr(color))
+      this.draw_zbuffer(x, y, z, color)
 
   linear_interpolation_normale: ( norm1, norm2, x1, x2, z1, z2, cury ) ->
     color = [0,0,0]
