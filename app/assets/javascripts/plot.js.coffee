@@ -6,6 +6,13 @@
 #=require 'point'
 #=require 'light'
 
+
+
+# Источник света а не вектор наблюдения
+# Добавить нормаль точки вычислять
+# В алгоритме бери цикл по индексу точек, чтобы появился момент
+# Сделать индексы точкек вместо самих точек
+
 class Surface
   constructor: (u_min, v_min, u_max, v_max) ->
     @u_max = u_max
@@ -22,7 +29,7 @@ class Surface
     @du_count = 20
 
     # Хэш, где хранится отображение экранных координат в пространственные
-    @screen_to_object_coordinates_hash = new Array()
+    @object_point_coordinates = new Array()
     @flat = false
 
     @color_out = [123, 200, 20]
@@ -46,6 +53,8 @@ class Surface
     @guro = false
     @phong = false
     @point_segments = new Array()
+
+    @projection_points = new Array()
 
   
   # Считаем матрицу поворота. Стоит вынести за пределы текущего класса
@@ -193,23 +202,23 @@ class Surface
       while v < v_max
         v += @dv
         point = this.point_equation(u, v)
-        if point != []
-          points.push( point )
+        points.push( point ) if point != []
       #u += @du
       v = @v_min
-    return points
+    alert("rt")
+    @points = points
 
   surface_screen_points: () ->
-    points = this.surface_3d_points()
+    @points ||= this.surface_3d_points()
     screen_points = []
-    for point in points
-      working_point = new Point( point[0], point[1], point[2])
-      working_point.set_angle( @x_angle, @y_angle, @z_angle )
+    ind = 0
+    for point in @points
+      working_point = new Point( point[0], point[1], point[2] )
       working_point.multiplicate(@result_matr)
       to_p = working_point.get_screen_projection()
-      @screen_to_object_coordinates_hash[to_p] = [ working_point.get_x(), working_point.get_y(), working_point.get_z() ]
-      screen_points.push( to_p )
-
+      @object_point_coordinates[ind] = [ working_point.get_x(), working_point.get_y(), working_point.get_z() ]
+      @projection_points[ind] = to_p 
+      ind++
     return screen_points
   
   insert_into_point_segments: ( point, poly) ->
@@ -230,13 +239,13 @@ class Surface
         point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
         point_four = point_three + 1
 
-        poly_one = [points[point_one], points[point_two], points[point_three]]
-        poly_two = [points[point_four], points[point_three], points[point_two]]
+        poly_one = [point_one, point_two, point_three]
+        poly_two = [point_four, point_three, point_two]
 
-        point_one = @screen_to_object_coordinates_hash[points[point_one]]
-        point_two = @screen_to_object_coordinates_hash[points[point_two]]
-        point_three = @screen_to_object_coordinates_hash[points[point_three]]
-        point_four = @screen_to_object_coordinates_hash[points[point_four]]
+        point_one = @object_point_coordinates[point_one]
+        point_two = @object_point_coordinates[point_two]
+        point_three = @object_point_coordinates[point_three]
+        point_four = @object_point_coordinates[point_four]
 
         this.insert_into_point_segments( point_one, poly_one )
         this.insert_into_point_segments( point_two, poly_one )
@@ -260,8 +269,8 @@ class Surface
         j = 0
       else
         j = i + 1
-      first_surf_point = @screen_to_object_coordinates_hash[ segment[i] ]
-      second_surf_point = @screen_to_object_coordinates_hash[ segment[j] ]
+      first_surf_point = @object_point_coordinates[ segment[i] ]
+      second_surf_point = @object_point_coordinates[ segment[j] ]
 
       a += (first_surf_point[1] - second_surf_point[1]) * (first_surf_point[2] + second_surf_point[2])
       b += (first_surf_point[2] - second_surf_point[2]) * (first_surf_point[0] + second_surf_point[0])
@@ -297,27 +306,14 @@ class Surface
     if color != 0
       ctx.fillStyle = color; 
       ctx.beginPath()
-      ctx.moveTo(segment[0][0], segment[0][1])
-      ctx.lineTo(segment[1][0], segment[1][1])
-      ctx.lineTo(segment[2][0], segment[2][1])
+      p1 = @projection_points[segment[0]]
+      p2 = @projection_points[segment[1]]
+      p3 = @projection_points[segment[2]]
+      ctx.moveTo(p1[0], p1[1])
+      ctx.lineTo(p2[0], p2[1])
+      ctx.lineTo(p3[0], p3[1])
       ctx.fill()
 
-
-
-  # flat_filling_with_zbuffer: (segment, ctx, canvasData) ->
-  #   abc = this.calculate_normale( segment )
-  
-  #   color_arr = this.calculate_light_intensity_with_cos( abc )
-  #   if !(this.isNaN_arr(color_arr))
-  #     @canvasData = canvasData
-  #     if color_arr != [] && !(this.isNaN_arr(color_arr))
-  #       pixels = this.rasterization(segment)
-  #       for pxl in pixels
-  #         x = pxl[0]
-  #         y = pxl[1]
-  #         # z =  @screen_to_object_coordinates_hash[ segment[1] ][2]
-  #         this.calculate_z( segment[0], abc[0], abc[1], abc[2], x, y )
-  #         this.draw_zbuffer(x, y, z, color_arr )
 
   flat_filling_with_zbuffer: (segment, ctx, canvasData) ->
     abc = this.calculate_normale( segment )
@@ -326,9 +322,9 @@ class Surface
     segment = this.sort_by_y(segment)
     segment = this.sort_by_y(segment)
 
-    a = @screen_to_object_coordinates_hash[segment[0]]
-    b = @screen_to_object_coordinates_hash[segment[1]]
-    c = @screen_to_object_coordinates_hash[segment[2]]
+    a = @object_point_coordinates[segment[0]]
+    b = @object_point_coordinates[segment[1]]
+    c = @object_point_coordinates[segment[2]]
 
     aa = parseInt(a[1])
     cc = parseInt(c[1])
@@ -355,7 +351,7 @@ class Surface
       this.linear_interpolation_flat( color_arr, x1, x2, z1, z2, scany)
 
   calculate_z: ( point, a, b, c, x, y ) ->
-    surf_point = @screen_to_object_coordinates_hash[ point ]
+    surf_point = @object_point_coordinates[ point ]
     d = -(a*surf_point[0] + b*surf_point[1] + c*surf_point[2])
     ans = -(a * x + b * y + d  ) / (c + 0.001)
     return parseInt(ans)
@@ -397,9 +393,9 @@ class Surface
     segment = this.sort_by_y(segment)
     segment = this.sort_by_y(segment)
 
-    a = @screen_to_object_coordinates_hash[segment[0]]
-    b = @screen_to_object_coordinates_hash[segment[1]]
-    c = @screen_to_object_coordinates_hash[segment[2]]
+    a = @object_point_coordinates[segment[0]]
+    b = @object_point_coordinates[segment[1]]
+    c = @object_point_coordinates[segment[2]]
     a_normale =  this.calculate_point_normale( @point_segments[a] ) 
     a_col = this.calculate_light_intensity_with_cos( a_normale )
     b_normale =  this.calculate_point_normale( @point_segments[b] )
@@ -454,9 +450,9 @@ class Surface
     segment_normale = this.calculate_normale(segment)
     @segment_cos = this.calc_cos(segment_normale)
 
-    a = @screen_to_object_coordinates_hash[segment[0]]
-    b = @screen_to_object_coordinates_hash[segment[1]]
-    c = @screen_to_object_coordinates_hash[segment[2]]
+    a = @object_point_coordinates[segment[0]]
+    b = @object_point_coordinates[segment[1]]
+    c = @object_point_coordinates[segment[2]]
     a_normale =  this.calculate_point_normale( @point_segments[a] ) 
     b_normale =  this.calculate_point_normale( @point_segments[b] )
     c_normale = this.calculate_point_normale( @point_segments[c] ) 
@@ -523,7 +519,6 @@ class Surface
       z = parseInt(z)
       y = parseInt(cury/10)  + 190
       x = parseInt(i/10)     + 280
-     
       # if !(this.isNaN_arr(color))
       this.draw_zbuffer(x, y, z, color)
 
@@ -586,9 +581,9 @@ class Surface
     working_segment[0] = segment[0]
     working_segment[1] = segment[1]
     working_segment[2] = segment[2]
-    a = working_segment[0]
-    b = working_segment[1]
-    c = working_segment[2]
+    a = @object_point_coordinates[segment[0]]
+    b = @object_point_coordinates[segment[1]]
+    c = @object_point_coordinates[segment[2]]
     if a[1] > b[1]
       working_segment.swap(0, 1)
     if a[1] > c[1]
@@ -598,91 +593,6 @@ class Surface
 
     return working_segment
 
-  rasterization: (segment) ->
-    pixels = []
-    working_segment = []
-    working_segment = this.sort_by_y( segment )
-    working_segment = this.sort_by_y( working_segment )
-
-    a = working_segment[0]
-    b = working_segment[1]
-    c = working_segment[2]
-
-    x1 = parseInt(a[0])
-    y1 = parseInt(a[1])
-    x2 = parseInt(b[0])
-    y2 = parseInt(b[1])
-    x3 = parseInt(c[0])
-    y3 = parseInt(c[1])
-
-    dx13 = 0.0
-    dx12 = 0.0
-    dx23 = 0.0
-
-    # Вычисляем приращения
-    dy31 = y3 - y1
-    if (dy31 != 0)
-      dx13 = (x3 - x1) / (y3 - y1)
-    dy21 = y2 - y1
-    if (dy21 != 0)
-      dx12 = (x2 - x1) / (y2 - y1)
-    dy32 = y3 - y2
-    if (dy32 != 0)
-      dx23 = (x3 - x2) / (y3 - y2)
-    
-    wx1 = x1
-    wx2 = wx1
-
-    _dx13 = dx13
-
-    if (dx13 > dx12)
-      t = dx12
-      dx12 = dx13
-      dx13 = t    
-    # Рисованеи верхнего треугольника
-    `
-    for(var i = parseInt(y1); i < y2; i++ )
-    {
-      for (var j = parseInt(wx1); j <= parseInt(wx2); j++ )
-      {
-        pixels.push( [j, i] );
-      }
-      wx1 += dx13;
-      wx2 += dx12;
-    }
-    `
-    
-    if (y1 == y2)
-      wx1 = x1
-      wx2 = x2
-    
-    if Math.abs(y1 - y2) < 0.01
-      wx1 = x1
-      wx2 = x2
-
-    if wx1 > wx2
-      t = wx2
-      wx2 = wx1
-      wx1 = t 
-
-    if (_dx13 < dx23)
-      t = _dx13
-      _dx13 = dx23
-      dx23 = t 
-    
-    # Растеризация нижнего треугольника
-    `
-    for( var i = parseInt(y2); i <= y3; i++ )
-    {
-      for ( var j = parseInt(wx1); j <= parseInt(wx2); j++ )
-      {
-        pixels.push( [j, i] );
-      }
-      wx1 += _dx13;
-      wx2 += dx23;
-    }
-    ` 
-    return pixels
     
   #NOTE:::       Ставим свет!!!
 
@@ -773,9 +683,12 @@ class Surface
     else
       for segment in segments
         ctx.beginPath()
-        ctx.moveTo(segment[0][0], segment[0][1])
-        ctx.lineTo(segment[1][0], segment[1][1])
-        ctx.lineTo(segment[2][0], segment[2][1])
+        p1 = @projection_points[segment[0]]
+        p2 = @projection_points[segment[1]]
+        p3 = @projection_points[segment[2]]
+        ctx.moveTo(p1[0], p1[1])
+        ctx.lineTo(p2[0], p2[1])
+        ctx.lineTo(p3[0], p3[1])
         ctx.closePath()
         ctx.stroke()
 
