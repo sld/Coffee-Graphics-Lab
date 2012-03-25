@@ -110,15 +110,19 @@ class Surface
 
   set_du_count: ( val ) ->
     @du_count = val
+    @points = this.surface_3d_points()
 
   set_dv_count: ( val ) ->
     @dv_count = val
+    @points = this.surface_3d_points()
 
   set_u: ( val ) ->
     @u_max = val * Math.PI / 180
+    @points = this.surface_3d_points()
 
   set_v: ( val ) ->
     @v_max = val * Math.PI / 180
+    @points = this.surface_3d_points()
 
   set_flat: ( val ) ->
     @flat = val
@@ -184,79 +188,86 @@ class Surface
     a = @surface_parameter * 1000
     x = a * Math.sin( u ) * Math.cos( v ) 
     y = a * Math.sin( u ) * Math.sin( v ) 
-    #z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
+    # z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
     z = a * ( Math.sin( u / 2 ) ) + Math.cos( u ) 
+    
     return [x, y, z]
 
   surface_3d_points: () ->
     points = []
-    @du = ((@u_max - @u_min) / (@du_count))
-    @dv = ((@v_max - @v_min) / (@dv_count)) 
+    @du = ((@u_max - @u_min) / (@du_count-1))
+    @dv = ((@v_max - @v_min) / (@dv_count-1)) 
     u = @u_min
     v = @v_min
-    u_max = @u_max - @du/2
-    v_max = @v_max + @dv/2
+    u_max = @u_max 
+    v_max = @v_max 
 
-    while u < u_max
-      u += @du
-      while v < v_max
-        v += @dv
+    for i in [0...@dv_count - 1]
+      for j in [0...@du_count - 1]
         point = this.point_equation(u, v)
-        points.push( point ) if point != []
-      #u += @du
-      v = @v_min
-    alert("rt")
+        points.push( point )
+        u += @du
+      point = this.point_equation(u, v)
+      points.push( point )
+      v += @dv 
+      u = @u_min
+
+    for i in [0...@du_count]
+      point = this.point_equation(u, v_max)
+      points.push( point )
+      u += @du 
+
     @points = points
 
   surface_screen_points: () ->
     @points ||= this.surface_3d_points()
+    @object_point_coordinates = []
+    @projection_points = []
     screen_points = []
-    ind = 0
     for point in @points
       working_point = new Point( point[0], point[1], point[2] )
       working_point.multiplicate(@result_matr)
       to_p = working_point.get_screen_projection()
-      @object_point_coordinates[ind] = [ working_point.get_x(), working_point.get_y(), working_point.get_z() ]
-      @projection_points[ind] = to_p 
-      ind++
+      @object_point_coordinates.push( [ working_point.get_x(), working_point.get_y(), working_point.get_z() ] )
+      @projection_points.push( to_p )
     return screen_points
   
   insert_into_point_segments: ( point, poly) ->
     @point_segments[point] ||= []
-    @point_segments[point].push(poly)
+    @point_segments[point].push(poly) if not ( poly in @point_segments )
 
   surface_segments: () ->
     points = this.surface_screen_points()
     segments = []
+    @point_segments = new Array()
 
     # Хэш вида { 3D_Точка -> [ Полигоны ]}
 
-    for v_ind in [0...@du_count-1]
-      for u_ind in [0...@dv_count]
+    for u_ind in [0...@du_count-1]
+      for v_ind in [0...(@dv_count-1)*@du_count] by @du_count
 
-        point_one = v_ind * @dv_count + v_ind + u_ind
-        point_two = point_one + 1
-        point_three = (v_ind + 1) * @dv_count + v_ind + 1 + u_ind
-        point_four = point_three + 1
+        point_one = u_ind + v_ind 
+        point_two = u_ind + v_ind + @du_count
+        point_three = u_ind + v_ind + 1
+        point_four = u_ind + v_ind + @du_count
+        point_five = u_ind + v_ind + @du_count + 1
+        point_six = u_ind + v_ind + 1
+
 
         poly_one = [point_one, point_two, point_three]
-        poly_two = [point_four, point_three, point_two]
-
-        point_one = @object_point_coordinates[point_one]
-        point_two = @object_point_coordinates[point_two]
-        point_three = @object_point_coordinates[point_three]
-        point_four = @object_point_coordinates[point_four]
+        poly_two = [point_four, point_five, point_six]
 
         this.insert_into_point_segments( point_one, poly_one )
         this.insert_into_point_segments( point_two, poly_one )
         this.insert_into_point_segments( point_three, poly_one )
         this.insert_into_point_segments( point_four, poly_two )
-        this.insert_into_point_segments( point_three, poly_two )
-        this.insert_into_point_segments( point_two, poly_two )
+        this.insert_into_point_segments( point_five, poly_two )
+        this.insert_into_point_segments( point_six, poly_two )
 
         segments.push( poly_one )
         segments.push( poly_two )
     return segments
+
 
   # Подсчёт координат вектора нормали для сегмента
   calculate_normale: (segment) ->
@@ -336,18 +347,18 @@ class Surface
     z2=0
     
     for scany in [aa..cc]
-      x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1])
-      z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1])
+      x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1] + 1)
+      z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1] + 1)
       if (scany < b[1])
-        x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
-        z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1])
+        x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1]+ 1)
+        z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1]+ 1)
       else
         if( c[1] == b[1] )
           x2 = b[0]
           z2 = b[2]
         else
-          x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1])
-          z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1])
+          x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1]+ 1)
+          z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1]+ 1)
       this.linear_interpolation_flat( color_arr, x1, x2, z1, z2, scany)
 
   calculate_z: ( point, a, b, c, x, y ) ->
@@ -512,7 +523,7 @@ class Surface
   linear_interpolation_flat: ( color, x1, x2, z1, z2, cury ) -> 
     x1 = parseInt(x1)
     x2 = parseInt(x2)
-    dx = x2 - x1
+    dx = x2 - x1 + 1
     for i in [x1..x2]
       z = z1 + (i - x1)*(z2 - z1) / dx
       
@@ -612,6 +623,17 @@ class Surface
     ctx.fillText("x", 101, 10)
     ctx.fillText("y", 7, 101)
 
+
+    # point_one = @projection_points[@debug[0]]
+    # point_two = @projection_points[@debug[1]]
+    # point_three = @projection_points[@debug[2]]
+    # point_four = @projection_points[@debug[3]]
+
+    # ctx.fillText("p1", point_one[0], point_one[1])
+    # ctx.fillText("p2", point_two[0], point_two[1])
+    # ctx.fillText("p3", point_three[0], point_three[1])
+    # ctx.fillText("p4", point_four[0], point_four[1])
+
   setPixel: (imageData, x, y, r, g, b, a) ->
     index = (x + y * imageData.width) * 4;
     imageData.data[index+0] = r;
@@ -686,11 +708,12 @@ class Surface
         p1 = @projection_points[segment[0]]
         p2 = @projection_points[segment[1]]
         p3 = @projection_points[segment[2]]
-        ctx.moveTo(p1[0], p1[1])
-        ctx.lineTo(p2[0], p2[1])
-        ctx.lineTo(p3[0], p3[1])
-        ctx.closePath()
-        ctx.stroke()
+        if p1 && p2 && p3
+          ctx.moveTo(p1[0], p1[1])
+          ctx.lineTo(p2[0], p2[1])
+          ctx.lineTo(p3[0], p3[1])
+          ctx.closePath()
+          ctx.stroke()
 
     this.draw_axises(ctx)
 
