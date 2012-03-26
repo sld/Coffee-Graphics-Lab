@@ -14,11 +14,8 @@ class Light
 
   diffuse: (normale_vector, intensity) ->
     # Надо учитывать, что если косинус больше Пи/2, то угол равен 0
-    alpha = Math.cos_ab( normale_vector, @light_vector )
-    if alpha > 0 && alpha <= Math.PI/2
-      return intensity * alpha
-    else
-      return 0
+    alpha = Math.cos_ab( normale_vector, @light_vector )  
+    return Math.max(intensity * alpha, 0)
 
   reflect: (normale_vector, intensity) ->
     # HACK::: !!!

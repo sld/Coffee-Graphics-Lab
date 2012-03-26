@@ -3,9 +3,12 @@ $ ->
   # Иниициализация начальных значений поверхности
   u_min = 0.0
   v_min = 0.0
-  u_max = 2*Math.PI/2
-  v_max = 2*Math.PI
+  u_max = 135*Math.PI/180
+  v_max = 350*Math.PI/180
   sp = new Surface( u_min, v_min, u_max, v_max )
+
+  u_max = 180*Math.PI/180
+  v_max = 360*Math.PI/180
   sp.draw()
 
   a_val = 1

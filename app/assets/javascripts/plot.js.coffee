@@ -138,6 +138,8 @@ class Surface
 
   set_surface_parameter: ( val ) ->
     @surface_parameter = val
+    @points = this.surface_3d_points()
+
 
   set_out_color: (rgb) ->
     @color_out[0] = rgb[0]
@@ -195,6 +197,8 @@ class Surface
 
   surface_3d_points: () ->
     points = []
+    # HACK!!! HACK!!! HACK!!!
+    @v_max -= 0.001 if @v_max*180/Math.PI == 360
     @du = ((@u_max - @u_min) / (@du_count-1))
     @dv = ((@v_max - @v_min) / (@dv_count-1)) 
     u = @u_min
@@ -282,6 +286,11 @@ class Surface
         j = i + 1
       first_surf_point = @object_point_coordinates[ segment[i] ]
       second_surf_point = @object_point_coordinates[ segment[j] ]
+
+      if !first_surf_point
+        first_surf_point = 0
+      if !second_surf_point
+        second_surf_point = 0
 
       a += (first_surf_point[1] - second_surf_point[1]) * (first_surf_point[2] + second_surf_point[2])
       b += (first_surf_point[2] - second_surf_point[2]) * (first_surf_point[0] + second_surf_point[0])
@@ -407,11 +416,11 @@ class Surface
     a = @object_point_coordinates[segment[0]]
     b = @object_point_coordinates[segment[1]]
     c = @object_point_coordinates[segment[2]]
-    a_normale =  this.calculate_point_normale( @point_segments[a] ) 
+    a_normale =  this.calculate_point_normale( @point_segments[segment[0]] ) 
     a_col = this.calculate_light_intensity_with_cos( a_normale )
-    b_normale =  this.calculate_point_normale( @point_segments[b] )
+    b_normale =  this.calculate_point_normale( @point_segments[segment[1]] )
     b_col = this.calculate_light_intensity_with_cos( b_normale )
-    c_normale = this.calculate_point_normale( @point_segments[c] ) 
+    c_normale = this.calculate_point_normale( @point_segments[segment[2]] ) 
     c_col = this.calculate_light_intensity_with_cos( c_normale )
     
     x1 = 0
@@ -422,22 +431,22 @@ class Surface
     col2 = new Array()
     @canvasData = canvasData
     if (this.isNaN_arr(a_col) || this.isNaN_arr(b_col) || this.isNaN_arr(c_col))
-      console.log(a_col, b_col, c_col, a_normale, @point_segments[a])
+      dd= 32
     else
       aa = parseInt(a[1])
       cc = parseInt(c[1])
       for scany in [aa..cc]
-        x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1])
-        z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1])
-        col1[0] = a_col[0] + (scany - a[1]) * (c_col[0] - a_col[0]) / (c[1] - a[1])
-        col1[1] = a_col[1] + (scany - a[1]) * (c_col[1] - a_col[1]) / (c[1] - a[1])
-        col1[2] = a_col[2] + (scany - a[1]) * (c_col[2] - a_col[2]) / (c[1] - a[1])
+        x1 = a[0] + (scany - a[1])*(c[0] - a[0]) / (c[1] - a[1] + 0.00001)
+        z1 = a[2] + (scany - a[1])*(c[2] - a[2]) / (c[1] - a[1]+ 0.00001)
+        col1[0] = a_col[0] + (scany - a[1]) * (c_col[0] - a_col[0]) / (c[1] - a[1]+ 0.00001)
+        col1[1] = a_col[1] + (scany - a[1]) * (c_col[1] - a_col[1]) / (c[1] - a[1]+ 0.00001)
+        col1[2] = a_col[2] + (scany - a[1]) * (c_col[2] - a_col[2]) / (c[1] - a[1]+ 0.00001)
         if (scany < b[1])
-          col2[0] = a_col[0] + (scany - a[1]) * (b_col[0] - a_col[0]) / (b[1] - a[1])
-          col2[1] = a_col[1] + (scany - a[1]) * (b_col[1] - a_col[1]) / (b[1] - a[1])
-          col2[2] = a_col[2] + (scany - a[1]) * (b_col[2] - a_col[2]) / (b[1] - a[1])
-          x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1])
-          z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1])
+          col2[0] = a_col[0] + (scany - a[1]) * (b_col[0] - a_col[0]) / (b[1] - a[1]+ 0.00001)
+          col2[1] = a_col[1] + (scany - a[1]) * (b_col[1] - a_col[1]) / (b[1] - a[1]+ 0.00001)
+          col2[2] = a_col[2] + (scany - a[1]) * (b_col[2] - a_col[2]) / (b[1] - a[1]+ 0.00001)
+          x2 = a[0] + (scany - a[1]) * (b[0] - a[0]) / (b[1] - a[1]+ 0.00001)
+          z2 = a[2] + (scany - a[1]) * (b[2] - a[2]) / (b[1] - a[1]+ 0.00001)
         else
           if( c[1] == b[1] )
             col2[0]  = b_col[0]
@@ -446,11 +455,11 @@ class Surface
             x2 = b[0]
             z2 = b[2]
           else
-            col2[0] = b_col[0] + (scany - b[1]) * (c_col[0] - b_col[0]) / (c[1] - b[1])
-            col2[1] = b_col[1] + (scany - b[1]) * (c_col[1] - b_col[1]) / (c[1] - b[1])
-            col2[2] = b_col[2] + (scany - b[1]) * (c_col[2] - b_col[2]) / (c[1] - b[1])
-            x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1])
-            z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1])
+            col2[0] = b_col[0] + (scany - b[1]) * (c_col[0] - b_col[0]) / (c[1] - b[1]+ 0.00001)
+            col2[1] = b_col[1] + (scany - b[1]) * (c_col[1] - b_col[1]) / (c[1] - b[1]+ 0.00001)
+            col2[2] = b_col[2] + (scany - b[1]) * (c_col[2] - b_col[2]) / (c[1] - b[1]+ 0.00001)
+            x2 = b[0] + (scany - b[1]) * (c[0] - b[0]) / (c[1] - b[1]+ 0.00001)
+            z2 = b[2] + (scany - b[1]) * (c[2] - b[2]) / (c[1] - b[1]+ 0.00001)
         this.linear_interpolation_color( col1, col2, x1, x2, z1, z2, scany)
 
   phong_shading: (segment, ctx, canvasData) ->
@@ -464,9 +473,9 @@ class Surface
     a = @object_point_coordinates[segment[0]]
     b = @object_point_coordinates[segment[1]]
     c = @object_point_coordinates[segment[2]]
-    a_normale =  this.calculate_point_normale( @point_segments[a] ) 
-    b_normale =  this.calculate_point_normale( @point_segments[b] )
-    c_normale = this.calculate_point_normale( @point_segments[c] ) 
+    a_normale =  this.calculate_point_normale( @point_segments[segment[0]] ) 
+    b_normale =  this.calculate_point_normale( @point_segments[segment[1]] )
+    c_normale = this.calculate_point_normale( @point_segments[segment[2]] ) 
 
     
     x1 = 0
@@ -560,12 +569,12 @@ class Surface
     x1 = parseInt(x1)
     x2 = parseInt(x2)
 
-    dx = x2 - x1
+    dx = x2 - x1 + 0.0001
     for i in [x1..x2]
       color[0] = col1[0] + (i - x1)*(col2[0] - col1[0]) / dx
       color[1] = col1[1] + (i - x1)*(col2[1] - col1[1]) / dx
       color[2] = col1[2] + (i - x1)*(col2[2] - col1[2]) / dx
-      z = z1 + (i - x1)*(z2 - z1) / (x2 - x1)
+      z = z1 + (i - x1)*(z2 - z1) / dx
       
       z = parseInt(z)
       y = parseInt(cury/10)  + 190
