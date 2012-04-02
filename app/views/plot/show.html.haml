@@ -56,7 +56,7 @@
         .span4
           .diffuse_color
             - light_color = 255
-            %h3 Цвет источника света(рассеянный)
+            %h3 Цвет источника света(точечный)
             #r
               %p r: #{light_color} &isin; [0...255]
             #g
@@ -67,8 +67,9 @@
       / /row
       .row-fluid
         .span4
-          .point_color
-            %h3 Цвет источника света(точечный)
+          //rename to - ambient_color 
+          .point_color 
+            %h3 Цвет источника света(рассеянный)
             #r
               %p r: #{light_color} &isin; [0...255]
             #g

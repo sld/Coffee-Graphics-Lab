@@ -165,14 +165,11 @@ class Surface
   set_light_refl_n: ( val ) ->
     @light.set_n( val )
 
-  set_ambient_col: (col_arr) ->
+  set_ambient_color: (col_arr) ->
     @ambient_col = col_arr
 
   set_diffuse_color: (col_arr) ->
     @diff_col = col_arr
-
-  set_point_color: (col_arr) ->
-    @ambient_col = col_arr
 
   set_guro: (val) ->
     @guro = val
@@ -188,10 +185,18 @@ class Surface
 
   point_equation: ( u, v ) ->
     a = @surface_parameter * 1000
-    x = a * Math.sin( u ) * Math.cos( v ) 
-    y = a * Math.sin( u ) * Math.sin( v ) 
-    # z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
-    z = a * ( Math.sin( u / 2 ) ) + Math.cos( u ) 
+    # x = a * Math.sin( u ) * Math.cos( v ) 
+    # y = a * Math.sin( u ) * Math.sin( v ) 
+    # # z = a * ( Math.log( Math.tan( u / 2 ) ) + Math.cos( u ) )
+    # z = a * ( Math.sin( u / 2 ) ) + Math.cos( u ) 
+    
+    x = a * Math.sin( u/2 ) * Math.cos( v ) 
+    y = a * Math.sin( u/2 ) * Math.sin( v ) 
+    z = a * ( Math.sin( u / 2 ) )*Math.cos( u )
+
+    # x = a*Math.cos(u)*Math.cos(v) 
+    # y = a*Math.cos(u)*Math.sin(v) 
+    # z = a*Math.sin(v) 
     
     return [x, y, z]
 
@@ -402,7 +407,8 @@ class Surface
     cos_s_n = this.calc_cos( normale )
     normale = Vector.create( normale )
     color_arr = []
-    if cos_s_n < 0
+    # color_arr = this.calculate_light_intensity( @color_out, normale )
+    if cos_s_n > 0
       color_arr = this.calculate_light_intensity( @color_in, normale )
     else 
       color_arr = this.calculate_light_intensity( @color_out, normale )

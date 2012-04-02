@@ -15,7 +15,10 @@ class Light
   diffuse: (normale_vector, intensity) ->
     # Надо учитывать, что если косинус больше Пи/2, то угол равен 0
     alpha = Math.cos_ab( normale_vector, @light_vector )  
-    return Math.max(intensity * alpha, 0)
+    if alpha < 0
+      return 0
+    else
+      return Math.max(intensity * alpha)
 
   reflect: (normale_vector, intensity) ->
     # HACK::: !!!
@@ -30,7 +33,7 @@ class Light
   summary_intensity: ( ambient_i, diffuse_i, reflection_i, surf_i, normale_vector ) ->
     a_i = Math.min(ambient_i, surf_i)
     d_i = Math.min(diffuse_i, surf_i)
-    return @ka * this.ambient( a_i ) + @kd * this.diffuse(normale_vector, d_i) + @kr * this.reflect(normale_vector, reflection_i) 
+    return (@ka * this.ambient( a_i ) + @kd * this.diffuse(normale_vector, d_i) + @kr * this.reflect(normale_vector, reflection_i)) 
 
   set_x_coord: (val) ->
     @light_vector.setElements( [val, @light_vector.e(2), @light_vector.e(3)] )

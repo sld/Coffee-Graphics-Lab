@@ -300,7 +300,7 @@ $ ->
     step: 1
     value: col_val
     slide: (event, ui) ->
-      $('.in_color #r p').html("r: #{ui.value}  &isin; [0...255]")
+      $('.diffuse_color #r p').html("r: #{ui.value}  &isin; [0...255]")
       sp.set_diffuse_color([ui.value,  $('.diffuse_color #g').slider("value"), $('.diffuse_color #b').slider("value") ])
       color = "rgb(" + ui.value + "," + $('.diffuse_color #g').slider("value") + "," + $('.diffuse_color #b').slider("value") + ")"
       $('#diffuse_color_show').css('background-color', color)
@@ -337,7 +337,7 @@ $ ->
     value: col_val
     slide: (event, ui) ->
       $('.point_color #r p').html("r: #{ui.value} &isin; [0...255]")
-      sp.set_point_color([ui.value,  $('.point_color #g').slider("value"), $('.point_color #b').slider("value") ])
+      sp.set_ambient_color([ui.value,  $('.point_color #g').slider("value"), $('.point_color #b').slider("value") ])
       color = "rgb(" + ui.value + "," + $('.point_color #g').slider("value") + "," + $('.point_color #b').slider("value") + ")"
       $('#point_color_show').css('background-color', color)
       sp.draw()
@@ -349,7 +349,7 @@ $ ->
     value: col_val
     slide: (event, ui) ->
       $('.point_color #g p').html("g: #{ui.value} &isin; [0...255]")
-      sp.set_point_color([$('.point_color #r').slider("value"),  ui.value, $('.point_color #b').slider("value") ])
+      sp.set_ambient_color([$('.point_color #r').slider("value"),  ui.value, $('.point_color #b').slider("value") ])
       color = "rgb(" + $('.point_color #r').slider("value") + "," + ui.value + "," + $('.point_color #b').slider("value") + ")"
       $('#point_color_show').css('background-color', color)
       sp.draw()
@@ -361,7 +361,7 @@ $ ->
     value: col_val
     slide: (event, ui) ->
       $('.point_color #b p').html("b: #{ui.value} &isin; [0...255]")
-      sp.set_point_color([$('.point_color #r').slider("value"),  $('.point_color #g').slider("value"), ui.value ])
+      sp.set_ambient_color([$('.point_color #r').slider("value"),  $('.point_color #g').slider("value"), ui.value ])
       color = "rgb(" + $('.point_color #r').slider("value") + "," + $('.point_color #g').slider("value") + "," +  ui.value + ")"
       $('#point_color_show').css('background-color', color)
       sp.draw()
