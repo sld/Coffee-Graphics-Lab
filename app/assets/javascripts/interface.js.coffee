@@ -116,20 +116,21 @@ $ ->
       sp.set_surface_parameter(ui.value)
       sp.draw()
 
-  $("input[name='filling']").change ->
-    if ($("input[@name='filling']:checked").val() == 'frame')
+  $('input[name="filling"]').change ->
+    $target = $('input[name="filling"]:checked')
+    if ($target.val() == 'frame')
       sp.set_flat(false)
       sp.draw()
-    else if ($("input[@name='filling']:checked").val() == 'flat')
+    else if ($target.val() == 'flat')
       sp.set_flat(true)
       sp.draw()
-    else if ($("input[@name='filling']:checked").val() == 'flat_with_zbuffer')
+    else if ($target.val() == 'flat_with_zbuffer')
       sp.set_flat_with_zbuffer(true)
       sp.draw()
-    else if ($("input[@name='filling']:checked").val() == 'guro')
+    else if ($target.val() == 'guro')
       sp.set_guro(true)
       sp.draw()
-    else if ($("input[@name='filling']:checked").val() == 'phong')
+    else if ($target.val() == 'phong')
       sp.set_phong(true)
       sp.draw()
     else
